@@ -129,9 +129,22 @@ pub fn create_view(
         // 返回 true，见 tauri-runtime-wry lib.rs:4863。）
         // 关掉之后处理器是 None，wry 回落成 `|_| false`，等于把拖放交还给 WebKit。
         .disable_drag_drop_handler()
-        // 每个站点一个独立的 WebView2 用户数据目录 —— 这就是 Electron 版
-        // persist:<id> 分区的等价物，登录态互不干扰的根基。
+        // 每个站点一个独立的数据目录 —— 这就是 Electron 版 persist:<id> 分区的等价物。
+        //
+        // ⚠️ 只有 Windows/WebView2 真的按它隔离：wry 在 macOS 上**根本不看**
+        // data_directory（tauri-runtime-wry 只把它当 WebContext 的 map key），
+        // mac 侧要隔离得另外传 WebViewBuilder::data_store_identifier()（macOS 14+），
+        // 现在没传 —— 所以 mac 上所有站点共用默认 cookie 存储，详见 README「已知限制」。
         .data_directory(partition_dir(id))
+        // Cloudflare 挑战守卫（见 src-ui/challenge-guard.js 里那段长注释）。
+        //
+        // 起因：auth.openai.com 的 Managed Challenge 落在一次 XHR 上时，那张挑战页
+        // 永远没有文档去执行它，登录页就死在 `Route Error (403): "<!DOCTYPE html>…"`。
+        // 守卫把挑战挪到文档里真正跑一次，过了盾再把用户送回原来那一页。
+        //
+        // 用 include_str! 而不是去读文件：脚本要在**文档开始前**执行，编译期嵌进
+        // 二进制最省事，也不会有「文件没打进包里」这种运行时惊喜。
+        .initialization_script(include_str!("../../src-ui/challenge-guard.js"))
         // 第三方登录 / 扫码登录弹窗的策略，对齐 Electron 版 handleWindowOpen：
         // http(s) 放行（WebView2 自己开的弹窗天然同 profile，登录态会写回同一个标签，
         // 且保留 window.opener，OAuth 回调才能通信）；其余协议交给系统。

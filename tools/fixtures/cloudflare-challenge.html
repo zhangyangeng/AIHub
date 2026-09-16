@@ -1,0 +1,16 @@
+<!--
+  Cloudflare Managed Challenge 的本地 fixture。
+
+  来源：用户在 aihub（Windows / WebView2）里登录 ChatGPT 时，
+  auth.openai.com 对 POST /api/accounts/email-otp/resend 返回的 403 响应体，
+  原样贴出来的那一份。这里做了三处删减，只保留判定要用到的特征：
+
+    1. 删掉了 `md` / `mdrd` 两个超长机器数据字段（几十 KB，判定用不上）；
+    2. 把外部脚本 `/cdn-cgi/challenge-platform/...` 换成由 fixture 服务器
+       按需注入的「可解」脚本 —— 真实那份要联网去 Cloudflare，离线跑不了；
+    3. 其余原样保留：title、robots、CSP、`_cf_chl_opt` 的字段名和 cZone。
+
+  保留这些不是为了好看：修复要靠它们判定「这是挑战页，不是业务错误」，
+  所以 fixture 必须带着真实特征，否则回路是假绿。
+-->
+<!DOCTYPE html><html lang="en-US"><head><title>Just a moment...</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta http-equiv="X-UA-Compatible" content="IE=Edge"><meta name="robots" content="noindex,nofollow"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="content-security-policy" content="default-src &#39;none&#39;; script-src &#39;nonce-jHOlwubXWS3cFx6TAc7QSl&#39; &#39;unsafe-eval&#39; https://challenges.cloudflare.com; script-src-attr &#39;none&#39;; style-src &#39;unsafe-inline&#39;; img-src &#39;self&#39; https://challenges.cloudflare.com; connect-src &#39;self&#39; https://challenges.cloudflare.com; frame-src &#39;self&#39; https://challenges.cloudflare.com blob:; child-src &#39;self&#39; https://challenges.cloudflare.com blob:; worker-src blob:; form-action http: https:; base-uri &#39;self&#39;"><style>*{box-sizing:border-box;margin:0;padding:0}html{line-height:1.15;-webkit-text-size-adjust:100%;color:#313131;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans",sans-serif}body{display:flex;flex-direction:column;height:100vh;min-height:100vh}.main-content{margin:8rem auto;padding-left:1.5rem;max-width:60rem}#challenge-error-text{background-repeat:no-repeat;background-size:contain;padding-left:34px}</style><meta http-equiv="refresh" content="360"></head><body><div class="main-wrapper" role="main"><div class="main-content"><noscript><div class="h2"><span id="challenge-error-text">Enable JavaScript and cookies to continue</span></div></noscript></div></div><script nonce="jHOlwubXWS3cFx6TAc7QSl">(function(){window._cf_chl_opt = {cFPWv: 'g',cH: 'r1sCMeG7QhzYqmkFGqSRpM4J7LsHHqAhHGpgLm5wiwg-1789456039-1.2.1.1-4Ap6obgzuSxgzDr2A2X5IH8trcJ8dkYmzmy0OW5C8TrfKyPalN6JrdobguJns2a8',cITimeS: '1789456039',cN: 'jHOlwubXWS3cFx6TAc7QSl',cRay: 'a3b5cb36d9428ea2',cTplB: '0',cTplC:0,cTplO:0,cTplV:5,cType: 'managed',cUPMDTk:"/api/accounts/email-otp/resend?__cf_chl_tk=FIXTURE",cvId: '3',cZone: 'auth.openai.com',fa:"/api/accounts/email-otp/resend?__cf_chl_f_tk=FIXTURE"};var a = document.createElement('script');a.nonce = 'jHOlwubXWS3cFx6TAc7QSl';a.src = '/cdn-cgi/challenge-platform/h/g/orchestrate/chl_page/v1?ray=a3b5cb36d9428ea2';document.getElementsByTagName('head')[0].appendChild(a);}());</script></body></html>

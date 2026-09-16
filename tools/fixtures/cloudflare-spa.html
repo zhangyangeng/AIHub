@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>OpenAI 登录（本地 fixture）</title></head>
+<body style="font:14px system-ui;padding:16px">
+<div id="app">登录页就绪</div>
+<script>
+/**
+ * 假登录页：只做一件事 —— 复刻出事的那条链路。
+ *
+ *   点「重发验证码」→ fetch 一个接口 → 拿到 403（body 是 Cloudflare 挑战页）
+ *   → 前端的 error boundary 把响应体 String() 出来打印。
+ *
+ * 第三步行内那串 `Route Error (403): "<!DOCTYPE html>..."` 是照 ChatGPT 的
+ * 实际输出写的（见用户截图），不是我们编的措辞——回路要断言的就是它。
+ */
+const app = document.getElementById('app');
+
+/**
+ * 把自己**渲染出来的文字**回传给 fixture 服务器。
+ *
+ * 为什么要这一步：观测通道只能从服务器这一侧拿。外壳里读不到站点 webview 的
+ * DOM，而嵌套调 debug_eval(target=站点) 会死锁（内层阻塞主线程等回调，回调又
+ * 要回主线程）。页面自己上报渲染结果，既避开了那条死路，报的又是「用户眼睛
+ * 看到的东西」——不是我们手工打的标记。
+ */
+const report = (text) =>
+  fetch('/__report?text=' + encodeURIComponent(String(text).slice(0, 200)), { cache: 'no-store' })
+    .catch(() => {});
+/** 上报状态：应用自己的文字 +（可能有）守卫挂上来的提示条。
+    提示条必须单独报：它排在那一大坨 Route Error 之后，一起截断就会被吃掉，
+    于是「守卫认输并提示」和「守卫压根没动」在轨迹上分不出来。 */
+const reportBody = () => {
+  const banner = document.getElementById('aihub-cf-guard-banner');
+  report(JSON.stringify({
+    app: app.textContent.slice(0, 60),
+    banner: banner ? banner.textContent.slice(0, 40) : null,
+  }));
+};
+
+async function resendOtp() {
+  let res;
+  try {
+    res = await fetch('/api/accounts/email-otp/resend', { method: 'POST' });
+  } catch (err) {
+    app.textContent = '网络错误: ' + err;
+    reportBody();
+    return;
+  }
+  const body = await res.text();
+  if (!res.ok) {
+    // ChatGPT 的 error boundary 就是把响应体当字符串塞进这句话里
+    app.textContent = 'Route Error (' + res.status + '): "' + body + '"';
+    reportBody();
+    return;
+  }
+  app.textContent = '验证码已发送（clearance 之后的重试成功了）';
+  reportBody();
+}
+
+report('登录页就绪');
+// 自动跑一次，等价于用户点了「重发验证码」
+setTimeout(resendOtp, 50);
+// 再报一次：守卫放弃时挂的提示条是稍后才出现的
+setTimeout(reportBody, 1500);
+</script>
+</body>
+</html>

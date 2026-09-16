@@ -611,6 +611,45 @@ AIHUB_SELFTEST=tools/tauri-drag-selftest.js \
 自己跟踪鼠标事件之后（原因见第 7 节「mac 上的页面内拖放」），这条链路才第一次能用
 合成事件测——所以顺手把它做成了回归测试。
 
+### Cloudflare 挑战：站点守卫 + 回路（Tauri，debug 构建）
+
+登录 ChatGPT 时如果撞上 Cloudflare 的 Managed Challenge，页面会直接死在
+`Route Error (403): "<!DOCTYPE html>…Just a moment…"` —— 挑战落在一次 XHR 上，
+而挑战页**必须在文档里才能跑起来**，XHR 里没有任何东西会执行它。
+`src-ui/challenge-guard.js`（由 `views.rs` 用 `initialization_script` 注入每个站点 webview）
+把它挪回文档里真正跑一次，过盾后再把用户送回原来那一页；同一个 URL 只自动重放一次，
+拿不到 clearance 就停手并挂一条提示，**绝不无限刷新**。原因与边界都写在那份文件开头。
+
+回归回路是一条命令：
+
+```bash
+bash tools/cloudflare-guard-loop.sh                     # 期望红（没有守卫时）
+CF_EXPECT=green bash tools/cloudflare-guard-loop.sh     # 期望绿
+CF_FIXTURE_MODE=stuck CF_EXPECT=stuck \
+  bash tools/cloudflare-guard-loop.sh                   # 期望「认输并提示」，且只导航一次
+```
+
+它跑的是**真 app**：`tools/cloudflare-fixture-server.js` 按真实响应回放
+（`403` + `cf-mitigated: challenge` + 真实挑战页），自检脚本把 fixture 站点挂进站点
+webview，页面再把自己**渲染出来的文字**回传给服务器 —— 判红绿用的就是服务器那份轨迹。
+
+| 模式 | 轨迹 | 含义 |
+| --- | --- | --- |
+| （没有守卫） | `XHR 403 → 页面渲染 Route Error (403)` | 红：原始 bug |
+| `normal` | `XHR 403 → 文档导航 → clearance 200 → 回原页 → 重试成功` | 绿：修复生效 |
+| `stuck` | `→ 文档导航 1 次 → 闸门拦住 → 提示条` | 绿：过不去时收手 |
+
+三个必须知道的前提：
+
+1. **不能有另一个 aihub 在跑**：单实例插件会让这次的实例直接退出（表现为「什么都没发生」）。
+   要么先退出它，要么编一份**另一个 identifier** 的测试二进制来跑，跟它井水不犯河水：
+   `TAURI_CONFIG='{"identifier":"io.github.openx123.aihub.cftest"}' cargo build --manifest-path src-tauri/Cargo.toml`
+   然后加 `CF_SKIP_SINGLE_INSTANCE_CHECK=1`。
+2. **只在 debug 构建里能跑**：`AIHUB_SELFTEST` / `debug_eval` 都是 `#[cfg(debug_assertions)]`。
+3. **只在 macOS 上验过**。Windows / WebView2 上的真实效果**没有验过** —— 那边过不过盾
+   由出口 IP 和客户端指纹决定，不是应用层能保证的。在那台机器上验：走一次登录，
+   成了就是成了；没成就看页面右上角有没有出现 Aihub 的提示条（守卫认输时才挂）。
+
 ---
 
 ## 7. 已知限制（务必先看）
@@ -647,6 +686,16 @@ AIHUB_SELFTEST=tools/tauri-drag-selftest.js \
 - **分屏依赖 Tauri 的 unstable 特性**。已知上游 bug（tauri#10131 / #11170）会让子 webview
   在反复缩放 / 最大化还原后位置飘，本项目用「每个窗口事件都重算绝对坐标压回去」绕过了。
   如果你遇到分屏错位，请开 issue 并说明操作步骤。
+- **⚠️ macOS 上「每个站点登录态互不干扰」没有生效：所有站点共用同一个 cookie 存储。**
+  做 Cloudflare 守卫（见第 6 节末）时撞见的：在 A 服务里写的 cookie，B 服务里读得到 ——
+  两个服务 id 不同、`WebViews/<id>` 目录也不同。根因已经查清：mac 侧只设了
+  `.data_directory()`，而 **wry 在 macOS 上根本不看这个字段**（它只被 tauri-runtime-wry
+  当作 WebContext 的 map key），真正决定存储的是 `WebViewBuilder::data_store_identifier()` ——
+  仓库里一次都没调用，于是 wry 落到 `WKWebsiteDataStore::defaultDataStore`，全局一个 jar。
+  **Windows / WebView2 走数据目录，是真隔离的，只有 mac 是坏的。** 后果：同一个网址加两个
+  服务（比如两个 ChatGPT 账号）会共享登录态。修法是给 builder 传一个从服务 id 稳定派生的
+  16 字节 identifier（该 API 需要 macOS 14+）。复现：加两个同源服务，在一个里
+  `document.cookie='x=1'`，看另一个读不读得到。
 
 ### 和运行时无关的
 
