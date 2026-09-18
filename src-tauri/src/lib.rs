@@ -543,7 +543,8 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("Aihub 启动失败")
         .run(|app, event| {
-            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+            // macOS Cmd+Q can emit Exit directly, without ExitRequested.
+            if matches!(event, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
                 save_window_preferences(app);
             }
         });
