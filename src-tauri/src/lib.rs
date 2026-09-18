@@ -39,6 +39,26 @@ impl AppState {
     }
 }
 
+/// Capture only normal window dimensions; OS minimized/zoomed sizes are temporary.
+fn remember_window_size(app: &tauri::AppHandle) {
+    let Some(window) = app.get_window(MAIN_WINDOW) else { return };
+    if window.is_minimized().unwrap_or(true)
+        || window.is_maximized().unwrap_or(true)
+        || window.is_fullscreen().unwrap_or(true) { return; }
+    let (Ok(size), Ok(scale)) = (window.inner_size(), window.scale_factor()) else { return };
+    let size = size.to_logical::<f64>(scale);
+    app.state::<AppState>().config.lock().expect("config 锁中毒")
+        .remember_window_size(size.width, size.height);
+}
+
+fn save_window_preferences(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    let config = state.config.lock().expect("config 锁中毒");
+    if let Err(err) = config::save(&config) {
+        eprintln!("[aihub] 窗口设置保存失败: {err}");
+    }
+}
+
 /// 把当前状态广播给外壳（对齐 Electron 版的 broadcast()）。
 pub fn broadcast(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
@@ -368,6 +388,7 @@ pub fn run() {
         eprintln!("[aihub] 启动时回写配置失败: {err}");
     }
     let always_on_top = config.always_on_top;
+    let window_size = config.window_size.unwrap_or(config::WindowSize { width: 1280.0, height: 820.0 });
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -394,8 +415,8 @@ pub fn run() {
 
             let window = tauri::window::WindowBuilder::new(app, MAIN_WINDOW)
                 .title("Aihub")
-                .inner_size(1280.0, 820.0)
-                .min_inner_size(880.0, 560.0)
+                .inner_size(window_size.width, window_size.height)
+                .min_inner_size(layout::MIN_SANE_WIDTH as f64, layout::MIN_SANE_HEIGHT as f64)
                 .center()
                 // 功能 1：常驻置顶，默认开启。
                 // Windows 上 Tauri 走的是 SetWindowPos(HWND_TOPMOST)，
@@ -449,9 +470,11 @@ pub fn run() {
             // 这个回调跑在主线程上，所以只能往布局线程投一张单子，不能直接排版。
             let resize_handle = handle.clone();
             window.on_window_event(move |event| match event {
-                WindowEvent::Resized(_) | WindowEvent::Moved(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
+                    remember_window_size(&resize_handle);
                     request_layout(&resize_handle);
                 }
+                WindowEvent::Moved(_) => request_layout(&resize_handle),
                 WindowEvent::Focused(false) => {
                     // 快捷键唤出时临时抬起的置顶，失焦就放下——不能一直压着别人。
                     // 用户明确开了常驻置顶的话不动它。
@@ -463,6 +486,7 @@ pub fn run() {
                     }
                 }
                 WindowEvent::CloseRequested { api, .. } => {
+                    save_window_preferences(&resize_handle);
                     // 「点关闭收进后台」：拦下来只隐藏，留着让快捷键随时唤回。
                     // 真正退出走托盘菜单或设置里的退出。
                     let cfg = resize_handle.state::<AppState>().snapshot();
@@ -516,8 +540,13 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("Aihub 启动失败");
+        .build(tauri::generate_context!())
+        .expect("Aihub 启动失败")
+        .run(|app, event| {
+            if matches!(event, tauri::RunEvent::ExitRequested { .. }) {
+                save_window_preferences(app);
+            }
+        });
 }
 
 #[cfg(test)]

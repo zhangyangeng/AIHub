@@ -89,8 +89,25 @@ impl Default for HotkeyConfig {
     }
 }
 
+/// Last normal content size in logical pixels (independent of display scale).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct WindowSize {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl WindowSize {
+    fn valid(self) -> bool {
+        self.width.is_finite() && self.height.is_finite()
+            && self.width >= crate::layout::MIN_SANE_WIDTH as f64
+            && self.height >= crate::layout::MIN_SANE_HEIGHT as f64
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(rename = "windowSize", default)]
+    pub window_size: Option<WindowSize>,
     #[serde(default)]
     pub version: u32,
     #[serde(rename = "servicesVersion", default)]
@@ -132,6 +149,7 @@ fn default_theme() -> String {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            window_size: None,
             version: CONFIG_VERSION,
             services_version: SERVICES_VERSION,
             services: default_services(),
@@ -151,6 +169,11 @@ impl Default for Config {
 }
 
 impl Config {
+    pub fn remember_window_size(&mut self, width: f64, height: f64) {
+        let size = WindowSize { width, height };
+        if size.valid() { self.window_size = Some(size); }
+    }
+
     pub fn get_service(&self, id: &str) -> Option<&Service> {
         self.services.iter().find(|s| s.id == id)
     }
@@ -172,6 +195,7 @@ impl Config {
     /// 读进来之后把所有能自愈的字段修正一遍。
     /// 原则：宁可退回默认值，也不让一个坏字段把应用卡死在启动阶段。
     pub fn normalize(&mut self) {
+        self.window_size = self.window_size.filter(|size| size.valid());
         let from_version = if self.services_version == 0 { 1 } else { self.services_version };
         let migration = migrate(std::mem::take(&mut self.services), from_version);
         self.services = migration.services;
@@ -311,6 +335,26 @@ pub fn wipe_pending(pending: &[String]) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn window_size_survives_config_roundtrip_and_old_configs_still_load() {
+        let old: Config = serde_json::from_str("{}").unwrap();
+        assert_eq!(old.window_size, None);
+        let mut cfg = Config::default();
+        cfg.remember_window_size(420.0, 360.0);
+        let loaded: Config = serde_json::from_str(&serde_json::to_string(&cfg).unwrap()).unwrap();
+        assert_eq!(loaded.window_size, Some(WindowSize { width: 420.0, height: 360.0 }));
+    }
+
+    #[test]
+    fn degenerate_resize_does_not_replace_last_normal_size() {
+        let mut cfg = Config::default();
+        cfg.remember_window_size(420.0, 360.0);
+        for (w, h) in [(0.0, 0.0), (100.0, 100.0), (f64::NAN, 400.0), (400.0, f64::INFINITY)] {
+            cfg.remember_window_size(w, h);
+        }
+        assert_eq!(cfg.window_size, Some(WindowSize { width: 420.0, height: 360.0 }));
+    }
 
     #[test]
     fn empty_config_gets_all_defaults() {
