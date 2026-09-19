@@ -1,0 +1,11 @@
+{
+  "format": "ai-multi-hub-login",
+  "version": 1,
+  "encrypted": true,
+  "cipher": "aes-256-gcm",
+  "kdf": "scrypt",
+  "salt": "lOcA8i2/iznJkI13vBO+Ow==",
+  "iv": "s0SOuBR0fbGSK2wF",
+  "tag": "8pn+q9qmUMbSlSUZlzKZTQ==",
+  "data": "sNK9AYG8yUSQKXOiBuSkXVDWX9jIjKZQ1xDtxXW8hMmQ3qJHDK6hwav06iv0l2iFTQRJ2fAY3aFnzwIweUBCX9XLpfoY2eijfjKD0tSiXcObB7iaOfE2hHVl++O0KYxdbjHgpfb3bGuYRkBqzA+x7RRl7RykVcyHW/ntZt/1Qu+uj0tjaSWwQG5HJI5Hak15DEXkfUiNYbGuWU7x2pVnCTXJrt3rdpZBIyV7Fk/mHt2z+h1Qg6uhfiCtQ7fqUf6P3+esmcPEb+15K2XBUGNOmorMav6aJJVukiuFMrOegTmYygbt98/f58Zefr7v+ilxMXGfnDrqkmUOb6oLjnkHUZ3x8CxkJ+dMwtZgqPUQ2tey5DILyrXVWrGqyljjDfptFspOdPjUrMDoRy1D8/RKF/Avv1eiAXijKsXfdWvexYwXVvIVWoqy83t50LLrRRLIpxgSXk4PTuroGbUPR6VX9wxnhrAMmqo0FHvaunoIwwIrEVCrHv1SpJxfASx86WORRvRk0DJGOF6qEw0JyRAg2pd1Qvgzc19IgpUnjq+bie21ceXrRIWFAPZQpb7c8MkF/xYCUn3plavXi5fn+VHn1fJ1ovEiFMvlk0YjkP4zx2il0TXadWeYvFbbG9kq6jw4k5V+RlzrYU81MTAe7F3cRgWovGbVh5nNOFukX3HoKsRZSqBH0UQp"
+}

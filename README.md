@@ -140,8 +140,8 @@ npm start            # 启动
 | 两栏宽度均分 | **双击分隔条**，或 ⇔ 菜单里的「均分所有栏宽度」 |
 | 回到单栏 | ⇔ 菜单里的「只显示当前标签」，或把其他栏的勾去掉 |
 | 切换当前焦点栏 | 点击已在布局中的标签；或直接点某栏里的页面 |
-| 导出登录信息 | ⚙ 设置 →「账号迁移」→「导出登录信息」，得到一个 JSON 文件 |
-| 导入登录信息 | ⚙ 设置 →「账号迁移」→ 填上密码（如果导出时设了）→「导入登录信息」 |
+| 导出登录信息 | ⚙ 设置 →「账号迁移」→（可选填密码）→「导出登录信息」，得到一个 JSON 文件。没打开过的标签会临时在后台加载一下再读，所以七个站点要跑十几秒 |
+| 导入登录信息 | ⚙ 设置 →「账号迁移」→「导入登录信息」→ 选文件 → 看确认清单 → 确认。加密过的文件要先把密码填进上面那个框 |
 | 自动更新（Windows） | 无需手动：启动后自动在后台查、下载完在底部提示「立即重启」。想主动查：**标签栏空白处右键** →「检查更新」（菜单上会写当前版本 / 下载进度）|
 | 中键点击标签 | 重新加载该标签 |
 | 网页里右键 | 复制 / 粘贴 / 复制链接 / 复制图片 / 在浏览器打开 / 刷新 / 检查元素（服务页面里也能正常右键了） |
@@ -358,6 +358,11 @@ aihub/
 > 真要回弹，就需要一套带速度传递的弹簧（见动效规范那节），眼下这点收益不值这个复杂度。
 
 ### 换电脑怎么把登录状态带过去
+
+> Tauri 版（v0.4.0 起）已经实现，走的是 `webview.cookies()` / `set_cookie()`；
+> 实现在 `src-tauri/src/login.rs`，文件格式和 Electron 版**字节级兼容**，
+> 所以 v0.2.x 导出的文件（`format` 是旧名 `ai-multi-hub-login`）可以直接导进新版 ——
+> 也就是说**从 Electron 版升级不一定要重新登录**，只要你手里还有旧版导出的文件。
 
 每个服务是独立的 session partition，登录态由两部分组成，导出/导入就是分别搬运这两部分：
 
@@ -611,6 +616,39 @@ AIHUB_SELFTEST=tools/tauri-drag-selftest.js \
 自己跟踪鼠标事件之后（原因见第 7 节「mac 上的页面内拖放」），这条链路才第一次能用
 合成事件测——所以顺手把它做成了回归测试。
 
+### 账号迁移：登录态导出 / 导入（Tauri，debug 构建）
+
+纯函数那一层（文件格式、scrypt + AES-256-GCM、服务匹配、跨版本兼容）全在 `cargo test` 里，
+包括两份**由 Node 按 Electron 版原样算法生成**的 fixture —— 「老文件还能导入」这条承诺
+就靠它们钉住。反方向（Rust 加密的文件 Node 能解）由 `npm run test:login-crypto` 覆盖。
+
+但有三件事只有真机才暴露得出来，归这条自检：
+
+```bash
+cd src-tauri
+SCRATCH="$TEMP/aihub-mig" && rm -rf "$SCRATCH" && mkdir -p "$SCRATCH"
+AIHUB_CONFIG_DIR="$SCRATCH" \
+  TAURI_CONFIG='{"identifier":"io.github.openx123.aihub.migtest"}' \
+  AIHUB_LOGIN_EXPORT_TO="$SCRATCH/export.json" \
+  AIHUB_SELFTEST=../tools/login-migration-selftest.js cargo run
+```
+
+| 程 | 盯的是什么 |
+| --- | --- |
+| ① 导出 | **死锁**。建临时 webview、等页面、eval、读 cookie 四件事都是「阻塞当前线程等主线程派发回调」，命令写成同步的就会自己等自己 |
+| ② 预检 | 自己导出的文件自己认不认得，服务匹配对不对得上 |
+| ③ 写回 | `set_cookie` 会不会被 WebView2 拒，失败数必须是 0 |
+| ④ 复查 | **写回有没有真的落盘**。③ 只证明调用返回了 Ok —— 而临时视图写完就销毁，不再读一遍就分不清「写进去了」和「调用成功但随视图一起没了」|
+
+> **两个必须同时给的环境变量。** `TAURI_CONFIG` 换 identifier 只避开单实例锁；
+> **`AIHUB_CONFIG_DIR` 才是真正换数据目录的那个**（`config_dir()` 写死 `%APPDATA%/Aihub`，
+> 换 identifier 它也不变）。只换 identifier 的话，这条自检会把**你真实的登录态**明文导到
+> 磁盘上，还会和正在跑的 Aihub 抢同一个 WebView2 用户数据目录。
+>
+> **而且必须在冷 profile 上验。** 热 profile 会掩盖真 bug：开发时就踩过一次 ——
+> 「建完视图立刻读 cookie」在热 profile 上碰巧能读到（磁盘上本来就有），
+> 冷 profile 上是 0 条。而「导出了 0 条 cookie」和「这个站点没登录」在返回值上一模一样。
+
 ### Cloudflare 挑战：站点守卫 + 回路（Tauri，debug 构建）
 
 登录 ChatGPT 时如果撞上 Cloudflare 的 Managed Challenge，页面会直接死在
@@ -642,13 +680,53 @@ webview，页面再把自己**渲染出来的文字**回传给服务器 —— �
 三个必须知道的前提：
 
 1. **不能有另一个 aihub 在跑**：单实例插件会让这次的实例直接退出（表现为「什么都没发生」）。
-   要么先退出它，要么编一份**另一个 identifier** 的测试二进制来跑，跟它井水不犯河水：
+   要么先退出它，要么编一份**另一个 identifier** 的测试二进制来跑：
    `TAURI_CONFIG='{"identifier":"io.github.openx123.aihub.cftest"}' cargo build --manifest-path src-tauri/Cargo.toml`
    然后加 `CF_SKIP_SINGLE_INSTANCE_CHECK=1`。
+
+   > ⚠️ **换 identifier 只避开单实例锁，不隔离数据。** `config_dir()` 写死了
+   > `%APPDATA%/Aihub`（为的是继承 Electron 版的老配置），identifier 换了它也不变。
+   > 结果是：自检会读到**你真实的登录态**，还会和正在运行的 Aihub 抢同一个
+   > WebView2 用户数据目录 —— 表现为一堆 `failed to receive message from webview`，
+   > 看起来像代码有 bug，其实是在抢锁。
+   >
+   > 要真隔离，加 `AIHUB_CONFIG_DIR=<一个空目录>`（debug 构建专用）：
+   > `AIHUB_CONFIG_DIR="$TEMP/aihub-scratch" cargo run`
 2. **只在 debug 构建里能跑**：`AIHUB_SELFTEST` / `debug_eval` 都是 `#[cfg(debug_assertions)]`。
 3. **只在 macOS 上验过**。Windows / WebView2 上的真实效果**没有验过** —— 那边过不过盾
    由出口 IP 和客户端指纹决定，不是应用层能保证的。在那台机器上验：走一次登录，
    成了就是成了；没成就看页面右上角有没有出现 Aihub 的提示条（守卫认输时才挂）。
+
+#### 守卫自己的状态机（Node + Chromium，不用构建 app）
+
+```bash
+npm run test:cf-guard     # 也包含在 npm run test:ui 里
+```
+
+上面那条回路验的是「挑战能不能被挪进文档里跑完」，要起真窗口、每轮等 14 秒，
+**验不动并发和状态掉落**。`tools/cloudflare-guard-strand-test.js` 把同一份
+`challenge-guard.js` 注入 Chromium（WebView2 就是这个内核），拿 fixture 跑六档：
+
+| 用例 | 盯的是什么 |
+| --- | --- |
+| 单发挑战 | 基本回路：过盾后回到原页 |
+| 同一 URL 并发两次 | **v0.3.3 的线上 bug**，见下 |
+| 两个不同 URL 同时被拦 | 分键的返回点不会互相覆盖 |
+| 只剩 tried、returns 没了 | `home` 兜底仍然能把人送回去 |
+| 一串接口接连被拦 | 总闸门封顶，不把用户来回甩 |
+| 文档导航也过不了盾 | 只导航一次 + 可点的返回口，不无限刷 |
+
+> **v0.3.3 踩过的坑，别再踩第二次。** 页面对同一个接口并发发两次请求，两个 403
+> 前后脚到：第一次记下返回点并发起顶层导航，第二次撞上重放闸门 —— 而闸门那条路
+> 当时会顺手 `delete state.return` 把返回点擦掉。可导航已经在路上了，新文档里
+> 一个返回点都没有，用户就**永久停在 `/backend-api/…` 那坨原始 JSON 上**
+> （站点 webview 没有地址栏也没有后退按钮，只能关标签）。
+>
+> 修法是三件事：返回点按**目标 URL** 分键、认输时**绝不**碰返回点、
+> 每份文档只允许发起一次顶层重放。另外顺带查清了一件一直没被证实的事：
+> `application/json` 这种非 HTML 文档上，document-start 注入脚本**照跑**、
+> `DOMContentLoaded` **照触发**、同源 sessionStorage **照样带得过去** ——
+> 所以「停在 JSON 上回不去」从来不是注入没生效，而是返回点被擦了。
 
 ---
 
@@ -658,6 +736,14 @@ webview，页面再把自己**渲染出来的文字**回传给服务器 —— �
 
 - **从 Electron 版升级要重新登录一次**。两套运行时的 cookie 存储格式不兼容，
   没有可靠转换路径。服务列表 / 分屏布局 / 主题 / 快捷键 / 休眠设置都能继承，只有登录态要重来。
+- **导出文件里不带 `hostOnly` 标记**。host-only 的唯一判据是 Cookie 的 Domain 有没有
+  前导点，而 `cookie` crate 的 `domain()` 和 `domain_raw()` **都**会把点剥掉，
+  这个信息在 wry 这一层拿不到。宁可不写也不瞎填：填错了会让导入端把域 Cookie 钉死在
+  单个主机上，子域名的登录态当场作废。实际影响是导入后一律按域 Cookie 还原（更宽松），
+  登录本身不受影响。
+- **导出会临时加载没打开过的站点**。读本地存储必须有一个停在该源上的页面，所以导出时会
+  给每个没打开的服务建一个屏幕外的临时 webview，读完即毁。代价是导出要十几秒、
+  期间有网络请求。
 - **Windows 需要 WebView2 运行时**。Win11 自带，Win10 基本随 Edge 装过了。
   极少数精简版 / LTSC 系统上安装器会去微软下载（需要联网，约 1 分钟）。
   这是包能从 113 MB 缩到 2 MB 的代价——运行时不再由应用携带。

@@ -1,0 +1,11 @@
+{
+  "format": "aihub-login",
+  "version": 1,
+  "encrypted": true,
+  "cipher": "aes-256-gcm",
+  "kdf": "scrypt",
+  "salt": "j6Pd26IorGn4RA4gKqmhfA==",
+  "iv": "aaIEkDZQuS0AFjn8",
+  "tag": "moGOir5EnRTtyRLCWKai9A==",
+  "data": "4fykVQuPS+0UGiITzp4ceCxETul6udxe1HpER+qUDO9gciqdipq6hQJKEZGrtm1OD3HTutU1zqCMHoJZzRLqUN8G1ld0JS+4IY0zUySeMQRt0iW4JTFj8eCzSMtuW56zS3vGetdYdZtTfLr+Yd8bwjQVCm9/wkxly9cLJMm/9+fSWvsazPzkM7p7yuxV/Guf+zb7NeEilyQiSztP2xOUZ6FyoDb/BUHLAO9kvVZg2Khe+WNy/Wh2SwrDPQGCRTabatCWurlrBwnaaiizTnzdJKAr5VdSHs0HYrKCJkdTnGpkpAIwyz1bCznmNmFMnoY2Isj1UF1i4YZaEO4WiifxR2A2tXcXPMRlp/NKNWsOh0SXu143bq+ON8VeqHp3sqCCZUKdWmIq572fm5djtJ4FZoeIBauN9bsPKGKbawUTZCG4TWAoCpwed/l2Sb1eXLiyXVJJiI91Lx+vhRLBCorrOnitiCCoWB9pOa5wRCqo0cSN5XXtgXPoec79Ord6+0Yzlxm3Ke1FbQnHL/opWIz0NrAzxGyfLaNAfDQ8"
+}

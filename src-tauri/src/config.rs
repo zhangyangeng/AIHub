@@ -263,7 +263,23 @@ impl Config {
 }
 
 /// 配置目录：沿用 Electron 版的 %APPDATA%/Aihub，好让老配置直接被继承。
+///
+/// ⚠️ 这个名字是**写死的**，换 `identifier` 不会改变它。
+/// 所以 README 第 6 节那句「跑回路时换一个 identifier」只避开了单实例锁，
+/// **数据目录仍然是用户的真实 profile**。踩过一次，代价很实在：
+///
+/// - 自检的「导出登录态」导的是**真实账号**，明文落盘；
+/// - 还会和正在运行的那个 Aihub 抢同一个 WebView2 用户数据目录，
+///   表现为一堆 `failed to receive message from webview`，看起来像代码有 bug。
+///
+/// 要真隔离就用下面这个开关（只在 debug 构建里存在）。
 pub fn config_dir() -> PathBuf {
+    #[cfg(debug_assertions)]
+    if let Ok(dir) = std::env::var("AIHUB_CONFIG_DIR") {
+        if !dir.is_empty() {
+            return PathBuf::from(dir);
+        }
+    }
     dirs::config_dir().unwrap_or_else(|| PathBuf::from(".")).join("Aihub")
 }
 

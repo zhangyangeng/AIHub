@@ -878,17 +878,33 @@ pub fn app_version(app: AppHandle) -> String {
 }
 
 // ---------------------------------------------------------------------------
-// 尚未迁移的能力：明说，不要静默失败
+// 账号迁移（实现在 src/login.rs）
 // ---------------------------------------------------------------------------
 
+// 这两个必须是 `async fn`，而且真正的活要丢进 spawn_blocking。
+//
+// 不是风格问题，是死锁问题：同步命令**可能跑在主线程上**，而迁移要做的三件事
+// —— 建 webview（add_child）、eval 取结果、读 cookie —— 全都是「阻塞当前线程
+// 等主线程派发回调」。在主线程上调就是自己等自己。Tauri 文档在 `cookies()` 那条
+// 写得很直白：「On Windows, this function deadlocks when used in a synchronous
+// command or event handlers. You should use `async` commands and separate
+// threads when reading cookies.」
+//
+// spawn_blocking 而不是直接在 async 体里干：这活要跑好几十秒（逐个站点加载页面），
+// 占着异步运行时的工作线程不放会把别的命令一起拖住。
+
 #[tauri::command]
-pub fn login_export(_password: String) -> CmdResult<serde_json::Value> {
-    Err("登录态导出尚未迁移到 Tauri 版：WebView2 的 cookie 存储格式与 Electron 不同，需要重做".into())
+pub async fn login_export(app: AppHandle, password: String) -> CmdResult<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || crate::login::export_blocking(app, password))
+        .await
+        .map_err(|e| format!("导出任务异常退出：{e}"))?
 }
 
 #[tauri::command]
-pub fn login_import(_options: serde_json::Value) -> CmdResult<serde_json::Value> {
-    Err("登录态导入尚未迁移到 Tauri 版：WebView2 的 cookie 存储格式与 Electron 不同，需要重做".into())
+pub async fn login_import(app: AppHandle, options: serde_json::Value) -> CmdResult<serde_json::Value> {
+    tauri::async_runtime::spawn_blocking(move || crate::login::import_blocking(app, options))
+        .await
+        .map_err(|e| format!("导入任务异常退出：{e}"))?
 }
 
 #[tauri::command]

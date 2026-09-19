@@ -28,6 +28,15 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"
 dirs = "5"
+# 账号迁移（src/login.rs）：导出文件可选加密。
+# 方案照搬 Electron 版：scrypt(N=16384,r=8,p=1) 派生 32 字节密钥 + AES-256-GCM。
+# 参数必须和 Node 的 crypto.scryptSync 默认值一致，否则老版本导出的文件解不开。
+aes-gcm = "0.10"
+scrypt = "0.11"
+base64 = "0.22"
+# 和 tauri 用的是同一个 cookie crate（tauri_runtime 再导出的就是它），
+# 版本必须落在同一个 semver 区间，否则 set_cookie 的类型对不上。
+cookie = "0.18"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [

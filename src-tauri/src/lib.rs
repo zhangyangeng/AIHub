@@ -12,6 +12,7 @@
 pub mod commands;
 pub mod config;
 pub mod layout;
+pub mod login;
 #[cfg(target_os = "macos")]
 pub mod macos;
 pub mod services;

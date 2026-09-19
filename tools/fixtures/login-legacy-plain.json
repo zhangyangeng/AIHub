@@ -1,0 +1,36 @@
+{
+  "format": "ai-multi-hub-login",
+  "version": 1,
+  "exportedAt": "2026-01-02T03:04:05.000Z",
+  "app": {
+    "name": "AI Multi Hub",
+    "version": "0.2.9"
+  },
+  "services": [
+    {
+      "id": "chatgpt",
+      "name": "ChatGPT",
+      "url": "https://chatgpt.com/",
+      "cookies": [
+        {
+          "name": "__Secure-next-auth.session-token",
+          "value": "legacy-token-value",
+          "domain": ".chatgpt.com",
+          "secure": true,
+          "httpOnly": true,
+          "sameSite": "lax",
+          "expirationDate": 4102444800
+        }
+      ],
+      "origins": [
+        {
+          "origin": "https://chatgpt.com",
+          "localStorage": {
+            "oai/apps/hasSeenOnboarding": "\"2026-01-01\""
+          },
+          "sessionStorage": {}
+        }
+      ]
+    }
+  ]
+}

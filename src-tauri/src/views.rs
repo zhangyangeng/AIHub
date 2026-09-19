@@ -113,12 +113,55 @@ pub fn create_view(
     w: f64,
     h: f64,
 ) -> tauri::Result<Webview<Wry>> {
+    let builder = site_builder(window, view_label(id), id, url)?;
+    window.add_child(
+        builder,
+        LogicalPosition::new(x, y),
+        LogicalSize::new(w, h),
+    )
+}
+
+/// 账号迁移用的临时 webview 标签。
+///
+/// 刻意和 `view_label` 分开。临时视图不进 ViewManager、也不参与布局，
+/// 用同一个标签的话，导出进行到一半时用户点开这个标签，布局线程就会撞上
+/// 「标签已存在」而建不出来。数据目录仍然是 `partition_dir(id)` ——
+/// 同一个 profile，cookie 和本地存储都看得见。
+pub fn migration_label(id: &str) -> String {
+    format!("mig-{id}")
+}
+
+/// 建一个**看不见的**站点 webview，只给账号迁移读写登录态用。
+///
+/// 摆到屏幕外而不是 `.hide()`：隐藏的 webview 在 WebView2 上会被降频甚至挂起，
+/// 页面脚本跑不完，读本地存储就会读到空的。摆出去则一切照常，只是用户看不到。
+///
+/// ⚠️ 和 `create_view` 一样：**必须在非主线程调用**（`add_child` 会阻塞等主线程）。
+pub fn create_migration_view(window: &Window, id: &str, url: &str) -> tauri::Result<Webview<Wry>> {
+    let builder = site_builder(window, migration_label(id), id, url)?;
+    window.add_child(
+        builder,
+        LogicalPosition::new(-32000.0, -32000.0),
+        LogicalSize::new(1280.0, 800.0),
+    )
+}
+
+/// 站点 webview 的构建参数。`create_view`（摆在屏幕上的标签）和
+/// `create_migration_view`（迁移用的临时视图）共用一份，免得两边漂移——
+/// 尤其是 `data_directory`：两边不一致的话临时视图看到的就是另一个 profile，
+/// 导出来的是空的。
+fn site_builder(
+    window: &Window,
+    label: String,
+    id: &str,
+    url: &str,
+) -> tauri::Result<WebviewBuilder<Wry>> {
     let parsed: tauri::Url = url.parse().map_err(|_| {
         tauri::Error::WebviewNotFound
     })?;
 
     let app = window.app_handle().clone();
-    let builder = WebviewBuilder::new(view_label(id), WebviewUrl::External(parsed))
+    Ok(WebviewBuilder::new(label, WebviewUrl::External(parsed))
         // 站点页面也要关掉原生拖放处理器，否则「往对话里拖文件上传」是死的。
         //
         // Tauri 默认给每个 webview 装一个接收文件的处理器，而它不只是「接收」：
@@ -158,13 +201,7 @@ pub fn create_view(
                 let _ = app.opener().open_url(url.as_str(), None::<&str>);
                 NewWindowResponse::Deny
             }
-        });
-
-    window.add_child(
-        builder,
-        LogicalPosition::new(x, y),
-        LogicalSize::new(w, h),
-    )
+        }))
 }
 
 /// 外壳（标签栏 + 设置面板）。铺满整个窗口，站点视图叠在它上面。
