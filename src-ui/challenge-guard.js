@@ -24,11 +24,28 @@
  *      （指纹被拒、或网络侧就是过不去），此时**停手**并挂一条提示，
  *      绝不无限刷新。
  *
+ * ## 最重要的一条不变量
+ *
+ * **只要是守卫把用户送到某个地址的，就必须始终存在一条回去的路。**
+ *
+ * 站点 webview 没有地址栏、没有后退按钮：用户一旦停在 `/backend-api/models`
+ * 这种接口地址上，看到的就是一整屏原始 JSON，且毫无自救手段——只能关标签。
+ * 这个不变量被破坏过一次（见下面 returns 分键那段注释），代价就是用户被
+ * 永久锁在一坨 JSON 上。任何改动都别把它弄丢。
+ *
  * ## 边界（别假装它更强）
  *
- * - 拿不到 clearance 时它只能提示，没法变通过盾 —— 那取决于出口 IP 和客户端指纹；
+ * - 拿不到 clearance 时它只能提示 + 给一条返回的路，没法变通过盾 ——
+ *   那取决于出口 IP 和客户端指纹；
  * - 只在**同源**的挑战上能送回原处（跨源跳转时 sessionStorage 带不过去）；
  * - Service Worker / Worker 里的请求不走这里（登录链路都是页面级请求）。
+ *
+ * ## 回归
+ *
+ * - `tools/cloudflare-guard-loop.sh`：真 app + fixture，验「挑战能不能被挪进
+ *   文档里跑完」；
+ * - `tools/cloudflare-guard-strand-test.js`：Node + Chromium 注入这同一份脚本，
+ *   验**状态机**（并发、状态掉落、连续失败），确定性、秒级。
  */
 (() => {
   'use strict';
@@ -38,24 +55,57 @@
   const RETRY_WINDOW_MS = 60 * 1000;
   const BANNER_ID = 'aihub-cf-guard-banner';
   const BODY_SCAN_LIMIT = 200000;
+  const PRUNE_MS = 10 * RETRY_WINDOW_MS;
+  /** 一个时间窗里最多允许把用户的页面甩走几次（见 recover 里的总闸门） */
+  const MAX_REPLAYS = 3;
+
+  /** 本文档内是否已经发起过顶层重放（单飞闸门，刻意不跨导航：每个文档一份） */
+  let navigating = false;
 
   // --- 跨导航的状态：sessionStorage 优先，cookie 只作兜底 -------------------
   // 为什么需要一道跨导航的闸门：重放之后新文档会重新注入本脚本，没有跨导航的
   // 记忆就会无限刷新。sessionStorage 正好够用（同源导航保留，关标签即清）。
   // cookie 只在 sessionStorage 抛异常时写（隐私模式等），为的是**不**在站点域名
   // 下留任何东西 —— 那是别人的地盘，能不留痕迹就不留。
+  //
+  // 状态形状（三个字段各管一件事，别再塞回一个槽里）：
+  //   tried:   { [目标URL]: 毫秒 }           重放闸门，防无限刷
+  //   returns: { [目标URL]: {from, at} }     按**目标 URL** 记返回点
+  //   home:    最近一次「用户自己那一页」     returns 掉了时的兜底
+  //   replays: [毫秒, ...]                   总闸门，限制整体重放次数
+  //
+  // ⚠️ returns 必须按目标 URL 分键，不能是单槽。踩过的坑（v0.3.3 的现场）：
+  // 页面对同一个接口并发发两次请求，两个 403 前后脚到；第一次记下返回点并
+  // 发起顶层导航，第二次撞上重放闸门——而当时闸门那条路会顺手 `delete
+  // state.return`，把单槽的返回点擦掉。可导航已经在路上了，新文档里于是一个
+  // 返回点都没有，用户**永久停在那坨接口 JSON 上**。
+  // 分键之后并发互不干扰，闸门也不再碰返回点。
+
   function readState() {
     try {
       const raw = sessionStorage.getItem(KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return JSON.parse(raw) || {};
     } catch { /* 忽略 */ }
     try {
       const m = document.cookie.match(/(?:^|;\s*)aihub_cf_guard=([^;]+)/);
-      if (m) return JSON.parse(decodeURIComponent(m[1]));
+      if (m) return JSON.parse(decodeURIComponent(m[1])) || {};
     } catch { /* 忽略 */ }
     return {};
   }
+
   function writeState(state) {
+    // 顺手修剪过期条目：这两张表跟着会话走，不剪的话长会话里会一直涨
+    const now = Date.now();
+    try {
+      for (const k of Object.keys(state.tried || {})) {
+        if (now - state.tried[k] > PRUNE_MS) delete state.tried[k];
+      }
+      for (const k of Object.keys(state.returns || {})) {
+        const at = state.returns[k] && state.returns[k].at;
+        if (!at || now - at > PRUNE_MS) delete state.returns[k];
+      }
+    } catch { /* 忽略 */ }
+
     const text = JSON.stringify(state);
     try {
       sessionStorage.setItem(KEY, text);
@@ -64,6 +114,18 @@
     try {
       document.cookie = `${KEY}=${encodeURIComponent(text)}; path=/; max-age=120`;
     } catch { /* 两条路都断了就只能放弃闸门，但至少不会更糟 */ }
+  }
+
+  /** 这一页是守卫自己把用户送过来的吗（而不是用户自己点过来的） */
+  const isOurOwnLanding = (state) =>
+    Boolean((state.returns && state.returns[location.href])
+      || (state.tried && state.tried[location.href]));
+
+  /** 从当前这页出发能回到哪儿；没有可回之处就返回空串 */
+  function wayBack(state) {
+    const entry = state.returns && state.returns[location.href];
+    const to = (entry && entry.from) || state.home || '';
+    return to && to !== location.href ? to : '';
   }
 
   // --- 判定：这是挑战吗 ----------------------------------------------------
@@ -94,18 +156,48 @@
   }
 
   // --- 动作 ---------------------------------------------------------------
-  function banner() {
+  /**
+   * 提示条。`backTo` 非空时带一颗「返回上一页」按钮 —— 这是唯一的逃生口：
+   * 站点 webview 没有地址栏也没有后退按钮，用户停在接口地址或过不去的挑战页
+   * 上时，没有这颗按钮就只能关标签。
+   */
+  function banner(backTo) {
     try {
       if (document.getElementById(BANNER_ID) || !document.body) return;
       const el = document.createElement('div');
       el.id = BANNER_ID;
-      el.textContent = 'Aihub：Cloudflare 人机验证没有通过，已停止自动重试。请刷新页面或更换网络后再试。';
       el.setAttribute('style', [
         'position:fixed', 'top:8px', 'right:8px', 'z-index:2147483647',
         'max-width:320px', 'padding:10px 12px', 'border-radius:8px',
         'background:#3a2a12', 'color:#ffd79a', 'font:12px/1.6 system-ui,sans-serif',
         'box-shadow:0 4px 16px rgba(0,0,0,.35)',
       ].join(';'));
+
+      const text = document.createElement('div');
+      text.textContent = backTo
+        ? 'Aihub：Cloudflare 人机验证没有通过，已停止自动重试。可以返回上一页，或刷新／换个网络再试。'
+        : 'Aihub：Cloudflare 人机验证没有通过，已停止自动重试。请刷新页面或更换网络后再试。';
+      el.appendChild(text);
+
+      if (backTo) {
+        const btn = document.createElement('button');
+        btn.textContent = '返回上一页';
+        btn.setAttribute('style', [
+          'margin-top:8px', 'padding:4px 10px', 'border-radius:6px', 'cursor:pointer',
+          'border:1px solid rgba(255,215,154,.35)', 'background:transparent',
+          'color:#ffd79a', 'font:12px/1.4 system-ui,sans-serif',
+        ].join(';'));
+        btn.addEventListener('click', () => {
+          // 手动返回时把这一页的痕迹清掉，免得回去之后又被闸门当成「刚重放过」
+          const state = readState();
+          if (state.returns) delete state.returns[location.href];
+          if (state.tried) delete state.tried[location.href];
+          writeState(state);
+          location.replace(backTo);
+        });
+        el.appendChild(btn);
+      }
+
       document.body.appendChild(el);
     } catch { /* 忽略 */ }
   }
@@ -122,54 +214,94 @@
     const target = absolute(rawUrl);
     if (!target) return;
 
+    // 单飞：这份文档已经在往外跳了，后到的 403 一律闭嘴。
+    // 不加这道闸门的话，并发请求会叠着调 location.replace，还会往一个**马上
+    // 就要被替换掉**的页面上挂提示条（用户根本看不到），纯属添乱。
+    if (navigating) return;
+
     const state = readState();
     const tried = (state.tried && state.tried[target]) || 0;
     if (Date.now() - tried < RETRY_WINDOW_MS) {
       console.warn(`${MARK} 同一个 URL 刚重放过，停止自动恢复：${target}`);
-      delete state.return;
-      writeState(state);
-      banner();
+      // 注意：这里**不能**动 returns。认输的职责是「别再导航」，
+      // 不是「把回家的路擦掉」—— 擦掉就等于把用户锁死在接口响应上。
+      banner(wayBack(state));
       return;
     }
+
+    // 总闸门：per-URL 的闸门只拦得住「同一个地址反复重放」，拦不住「站点有
+    // 一串被拦的接口，于是用户被一个接一个地甩过去」。顶层导航是很重的动作
+    // （整页没了），必须有个总数上限。
+    state.replays = (state.replays || []).filter((t) => Date.now() - t < RETRY_WINDOW_MS);
+    if (state.replays.length >= MAX_REPLAYS) {
+      console.warn(`${MARK} 短时间内已经重放 ${state.replays.length} 次，停止自动恢复`);
+      writeState(state);
+      banner(wayBack(state));
+      return;
+    }
+    state.replays.push(Date.now());
 
     state.tried = state.tried || {};
     state.tried[target] = Date.now();
     // 只记同源的返回点：跨源时 sessionStorage 带不过去，记了也没用
     try {
       if (new URL(target).origin === location.origin) {
-        state.return = { from: location.href, to: target };
+        state.returns = state.returns || {};
+        state.returns[target] = { from: location.href, at: Date.now() };
+        state.home = location.href;
       }
     } catch { /* 忽略 */ }
     writeState(state);
 
+    navigating = true;
     console.warn(`${MARK} 检测到 Cloudflare 挑战（HTTP ${status}），顶层导航重放一次：${target}`);
     location.replace(target);
   }
 
   /**
-   * 回到原处：新文档如果不是挑战页、又不是用户原本那一页，说明我们正停在
-   * 「那次被拦请求的响应」上（Cloudflare 重放原请求的结果）——把用户送回去。
+   * 新文档落地时做两件事：记住「用户自己那一页」，以及该回去就回去。
+   *
+   * 回去的判据：这一页是守卫自己送过来的（URL 在 returns/tried 里），而且它
+   * 不是挑战页 —— 那说明我们正停在「那次被拦请求的响应」上（Cloudflare 重放
+   * 原请求的结果，通常就是一坨接口 JSON）。
    *
    * 必须等 DOMContentLoaded：挑战页的 title/`_cf_chl_opt` 要到那时候才在，
    * 早一步判断就会把正在跑的挑战自己打断。
+   *
+   * （已验过的前提，别再怀疑这一层：application/json 这种非 HTML 文档上，
+   * document-start 注入脚本照跑、DOMContentLoaded 照触发、同源 sessionStorage
+   * 照样带得过去。所以「停在 JSON 上回不去」从来不是注入没生效，
+   * 而是返回点被擦了。）
    */
-  function maybeReturn() {
+  function onLanded() {
     const state = readState();
-    const back = state.return;
-    if (!back || !back.from || !back.to) return;
-    if (isChallengeDocument()) return;      // 挑战在跑，别插手
-    if (location.href === back.from) {      // 已经回到原处了，闸门清掉
-      delete state.return;
-      writeState(state);
+    const ours = isOurOwnLanding(state);
+
+    if (isChallengeDocument()) {
+      // 挑战在跑，绝不插手（打断它 = 登录必挂）。但如果是我们把用户送到这儿的，
+      // 就得给一条逃生口 —— 否则盾一直过不去就是永久卡死。
+      if (ours) banner(wayBack(state));
       return;
     }
-    delete state.return;
+
+    if (!ours) {
+      // 用户自己的页面：记成兜底返回点
+      if (state.home !== location.href) {
+        state.home = location.href;
+        writeState(state);
+      }
+      return;
+    }
+
+    const back = wayBack(state);
+    if (!back) return;
+    if (state.returns) delete state.returns[location.href];
     writeState(state);
-    console.warn(`${MARK} 挑战已过，回到刚才的页面：${back.from}`);
-    location.replace(back.from);
+    console.warn(`${MARK} 挑战已过，回到刚才的页面：${back}`);
+    location.replace(back);
   }
 
-  document.addEventListener('DOMContentLoaded', maybeReturn, { once: true });
+  document.addEventListener('DOMContentLoaded', onLanded, { once: true });
 
   // --- 打点 1：fetch ------------------------------------------------------
   const origFetch = window.fetch;

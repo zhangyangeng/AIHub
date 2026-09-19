@@ -43,6 +43,23 @@
     };
   }
 
+  /**
+   * Electron 语义：失败也**返回**一个 { ok:false, error }，而不是让 Promise 抛。
+   *
+   * 这道包装不是可有可无的糖：index.html 里那些 handler 都是照 Electron 的返回值
+   * 形状写的（`const res = await ...; if (!res.ok) ...`），没有一个套了 try。
+   * 而 Tauri 的 invoke 在 Rust 返回 Err 时是 **reject**——于是 handler 在 await
+   * 那一行就直接中断，后面的 `migrateButtons(false)` 和报错提示全都不会跑：
+   * 用户看到的是「按钮永久变灰、没有任何解释」。
+   * （v0.3.3 的现场：账号迁移那两颗按钮就是这么死的。）
+   */
+  function asResult(promise) {
+    return promise.then(
+      (value) => (value && typeof value === 'object' ? value : { ok: true, value }),
+      (err) => ({ ok: false, error: String((err && err.message) || err || '调用失败') }),
+    );
+  }
+
   /** send 语义：不关心返回值，失败只记日志，绝不让 UI 卡住 */
   function send(cmd, args) {
     invoke(cmd, args || {}).catch((err) => console.error(`[aihub] ${cmd} 失败:`, err));
@@ -99,9 +116,11 @@
     openSplitMenu: (point) => invoke('ui_split_menu', { point: point || {} }),
     openShellMenu: (point) => invoke('ui_shell_menu', { point: point || {} }),
 
-    // ---- 登录迁移（尚未移植，会明确抛错而不是静默失败）----
-    exportLogin: (password) => invoke('login_export', { password: String(password || '') }),
-    importLogin: (options) => invoke('login_import', { options: options || {} }),
+    // ---- 登录迁移（Tauri 版尚未移植）----
+    // Rust 侧返回 Err，这里用 asResult 转成 { ok:false, error }，让设置面板把
+    // 「为什么用不了」原样显示出来，而不是把两颗按钮永久卡在灰色上。
+    exportLogin: (password) => asResult(invoke('login_export', { password: String(password || '') })),
+    importLogin: (options) => asResult(invoke('login_import', { options: options || {} })),
 
     // ---- 更新 ----
     checkUpdate: () => invoke('update_check'),
