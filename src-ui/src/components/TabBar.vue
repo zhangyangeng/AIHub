@@ -5,11 +5,13 @@ import { computed } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { builtinIcon } from '@/utils/icons';
 import { useToast } from '@/composables/useToast';
+import { useTabDrag } from '@/composables/useTabDrag';
 import type { Service } from '@/api/types';
 
 const appStore = useAppStore();
 const statusStore = useStatusStore();
 const { toast, toastAction } = useToast();
+const { onTabMouseDown } = useTabDrag();
 
 /** 顶栏可见的服务（收起的不显示） */
 const shown = computed(() => appStore.services.filter((s) => !s.hidden));
@@ -115,6 +117,7 @@ async function onClose(svc: Service) {
       @click="onClick(svc)"
       @auxclick="onAuxClick($event, svc)"
       @contextmenu="onContextMenu($event, svc)"
+      @mousedown="onTabMouseDown($event, svc.id)"
     >
       <img
         v-if="iconSrc(svc)"
