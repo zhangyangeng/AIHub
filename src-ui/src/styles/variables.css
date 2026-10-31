@@ -1,0 +1,102 @@
+/* 配色全部走变量：深色是默认值，浅色主题在下面的 prefers-color-scheme 里覆盖。
+   主题由主进程的 nativeTheme.themeSource 控制（设置里的 深色 / 浅色 / 跟随系统），
+   所以这里用媒体查询就够了，不需要额外的主题类名。 */
+:root {
+  --bar: 44px;
+
+  --bg: #12141a;
+  --bar-bg: #1b1e26;
+  --bar-border: #272b36;
+  --fg: #e6e9ef;
+  --fg-strong: #ffffff;
+  --fg-dim: #98a0b0;
+  --hover: #262a35;
+  --active: #323746;
+  --stripe: rgba(255,255,255,.05);
+  --badge-bg: rgba(255,255,255,.12);
+  --badge-fg: #dfe4ee;
+
+  --panel-bg: #171a22;
+  --card-bg: #13161d;
+  --line: #242938;
+  --input-bg: #101319;
+  --input-border: #2c3242;
+  --chip-bg: #232938;
+  --chip-hover: #2b323f;
+  --code-bg: #1c2029;
+  --code-fg: #b9c3d6;
+  --scrim: rgba(8, 10, 14, .9);
+  --shadow: rgba(0,0,0,.45);
+  --shadow-strong: rgba(0,0,0,.5);
+
+  --divider: #2b3040;
+  --divider-hover: #4b5468;
+
+  --danger: #e0526b;
+  --danger-bg: #2a1c21;
+  --danger-hover: #37222a;
+  --danger-border: #4a2b33;
+  --danger-fg: #ffb3bf;
+  --ok: #3ecf8e;
+  --ok-fg: #8bd99f;
+  --warn-fg: #ffd08a;
+  --accent: #4d6bfe;
+  --accent-hover: #5c78ff;
+  --on-accent: #ffffff;
+
+  /* 动效令牌（曲线来自 easing 规范表，不自己编）：
+     - 只动 transform / opacity：跳过布局与重绘，走 GPU 合成。
+     - 进入和退出都用 --ease-out；退出更短（--dur-exit），手感更跟手。
+     - 屏幕上「位置在变」的东西（滑块）用 --ease-drawer（iOS 抽屉曲线）。 */
+  --dur-1: 120ms;   /* 按压 / 悬浮反馈 */
+  --dur-2: 180ms;   /* 小元素进出：提示、下拉 */
+  --dur-3: 240ms;   /* 面板、弹层 */
+  --dur-exit: 150ms;
+  --ease-out: cubic-bezier(.23, 1, .32, 1);
+  --ease-in-out: cubic-bezier(.77, 0, .175, 1);
+  --ease-drawer: cubic-bezier(.32, .72, 0, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f5f7;
+    --bar-bg: #eaecf0;
+    --bar-border: #d7dae1;
+    --fg: #1f2329;
+    --fg-strong: #0b0d11;
+    --fg-dim: #6b7280;
+    --hover: #dfe2e8;
+    --active: #d3d7de;
+    --stripe: rgba(0,0,0,.04);
+    --badge-bg: rgba(0,0,0,.08);
+    --badge-fg: #3f4652;
+
+    /* 面板、卡片、输入框一律纯白：半透明会透出后面的滚动内容，显得脏 */
+    --panel-bg: #ffffff;
+    --card-bg: #ffffff;
+    --line: #e3e6ec;
+    --input-bg: #ffffff;
+    --input-border: #d3d8e0;
+    --chip-bg: #f1f3f7;
+    --chip-hover: #e6e9ef;
+    --code-bg: #f1f3f7;
+    --code-fg: #3f4652;
+    --scrim: rgba(24, 28, 36, .45);
+    --shadow: rgba(24,28,36,.14);
+    --shadow-strong: rgba(24,28,36,.2);
+
+    --divider: #d3d8e0;
+    --divider-hover: #a8b0bd;
+
+    --danger: #d93a52;
+    --danger-bg: #fdeff1;
+    --danger-hover: #fbe1e5;
+    --danger-border: #f2c4cc;
+    --danger-fg: #a81f36;
+    --ok: #12a150;
+    --ok-fg: #0f7a45;
+    --warn-fg: #8a5a00;
+    --accent: #3b5bdb;
+    --accent-hover: #3450c4;
+  }
+}
