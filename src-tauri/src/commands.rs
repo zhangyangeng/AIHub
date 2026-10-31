@@ -642,9 +642,27 @@ pub fn config_get_hotkey(app: AppHandle) -> serde_json::Value {
 #[tauri::command]
 pub fn window_set_always_on_top(app: AppHandle, on: bool) -> serde_json::Value {
     mutate_quiet(&app, |cfg| cfg.always_on_top = on);
+
+    // 常驻置顶一开，置顶权就归它了：唤出置顶那套状态作废，
+    // 否则会出现「常驻关了，窗口却还挂着一层唤出置顶」的错位。
+    let state = app.state::<AppState>();
+    state.pinned.store(false, std::sync::atomic::Ordering::SeqCst);
+    state.pin_epoch.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    state.pin_released_at.store(0, std::sync::atomic::Ordering::SeqCst);
+
     if let Some(window) = app.get_window(MAIN_WINDOW) {
-        // Windows 上这条走 SetWindowPos(HWND_TOPMOST)，是系统层面的置顶
-        let _ = window.set_always_on_top(on);
+        // 走 crate::topmost 而不是 window.set_always_on_top()：
+        // 后者在 Windows 上会顺带 ShowWindow(SW_SHOW)，取消置顶时窗口会自己
+        // 跳到最前抢一下焦点（原因见 topmost.rs）
+        let ok = if on {
+            crate::topmost::pin(&window)
+        } else {
+            // 用户手动取消常驻置顶：立刻办，不等前台落地
+            crate::topmost::release(&window, false)
+        };
+        if !ok {
+            eprintln!("[aihub] 切换常驻置顶失败（系统拒绝了 SetWindowPos）");
+        }
     }
     serde_json::json!({ "ok": true, "alwaysOnTop": on })
 }
@@ -675,15 +693,15 @@ pub fn toggle_tab_bar(app: &AppHandle) {
 
 #[tauri::command]
 pub fn window_summon(app: AppHandle) {
-    if let Some(window) = app.get_window(MAIN_WINDOW) {
-        let _ = window.show();
-        let _ = window.unminimize();
-        let _ = window.set_focus();
-    }
+    // 和老板键 / 托盘走同一条路：唤出时该抬的置顶一起抬，别让三个入口三套行为
+    crate::summon_window(&app);
 }
 
 #[tauri::command]
 pub fn window_hide(app: AppHandle) {
+    // 藏起来之前先摘唤出置顶：否则它以最高层躲在后台，
+    // 下次唤出时「这一层是谁加的」就对不上了
+    crate::release_summon_pin(&app, false);
     if let Some(window) = app.get_window(MAIN_WINDOW) {
         let _ = window.hide();
     }

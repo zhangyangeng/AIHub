@@ -16,9 +16,12 @@ pub mod login;
 #[cfg(target_os = "macos")]
 pub mod macos;
 pub mod services;
+pub mod topmost;
 pub mod views;
 
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
 
 use tauri::{Emitter, Manager, WindowEvent};
 
@@ -28,6 +31,18 @@ use crate::views::{ViewManager, MAIN_WINDOW};
 pub struct AppState {
     pub config: Mutex<Config>,
     pub views: Mutex<ViewManager>,
+    /// 「唤出时强制置顶」现在是不是真的加在窗口上。
+    ///
+    /// 只有它为 true 才需要去摘。没有这一位的时候每次失焦都无条件调一次摘置顶，
+    /// 而那个调用本身会碰窗口的 z-order（见 topmost.rs 的长注释），
+    /// 正好撞在用户点别的应用的那一刻。
+    pub pinned: AtomicBool,
+    /// 每次「唤出置顶 / 安排摘置顶」都 +1。
+    /// 延时摘置顶的线程拿它判断自己是不是已经过期（期间又唤出、又失焦了）。
+    pub pin_epoch: AtomicU64,
+    /// 上一次把唤出置顶摘掉的时间（毫秒，0 = 没摘过）。
+    /// 用来判断「刚让出前台又马上回来」要不要把置顶补回去。
+    pub pin_released_at: AtomicU64,
 }
 
 impl AppState {
@@ -186,6 +201,159 @@ pub fn register_hotkey(app: &tauri::AppHandle, accelerator: &str, enabled: bool)
     }
 }
 
+/// 「唤出置顶」这一刻该不该管：用户的「唤出时强制置顶」和「常驻置顶」是两件事，
+/// 常驻开着的时候整层置顶归常驻管，唤出那套不许插手。
+fn should_manage_summon_pin(config: &Config) -> bool {
+    config.hotkey.pin_top && !config.always_on_top
+}
+
+/// 唤出：抬到最高层，并记住「这一层是我们加的」。
+fn pin_on_summon(app: &tauri::AppHandle, window: &tauri::Window) {
+    let state = app.state::<AppState>();
+    // 先抬 epoch：上一轮排着的「摘置顶」立刻作废
+    state.pin_epoch.fetch_add(1, Ordering::SeqCst);
+    if !topmost::pin(window) {
+        eprintln!("[aihub] 唤出置顶没生效（系统拒绝了 SetWindowPos）");
+        return;
+    }
+    state.pinned.store(true, Ordering::SeqCst);
+    // 已经重新抬起来了，作废任何「补置顶」的凭据
+    state.pin_released_at.store(0, Ordering::SeqCst);
+}
+
+/// 让出前台 / 收起窗口：把这一层置顶摘掉。
+///
+/// `force` 为 false 时，本来就没加过就什么都不做——每一次空转的调用都是在改
+/// z-order，都可能把用户刚点开的窗口搅黄。
+pub(crate) fn release_summon_pin(app: &tauri::AppHandle, force: bool) {
+    let state = app.state::<AppState>();
+    state.pin_epoch.fetch_add(1, Ordering::SeqCst);
+    // 主动收起 / 主动让位是我们自己的决定，不参与「刚放掉又回来」的补置顶
+    state.pin_released_at.store(0, Ordering::SeqCst);
+    if !state.pinned.swap(false, Ordering::SeqCst) && !force {
+        return;
+    }
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        // 收起 / 主动让位：前台是谁都不重要，立刻办，不等
+        if !topmost::release(&window, false) {
+            eprintln!("[aihub] 取消唤出置顶失败（可忽略）");
+        }
+    }
+}
+
+/// 失焦后摘置顶的节奏。
+///
+/// 分两条路，绝大多数情况走第一条：
+///   - **快路径**：当场就放。实测失焦消息到达时，系统报告的当前前台窗口**已经**
+///     是用户点的那个了（探针：`WM_ACTIVATE(WA_INACTIVE)` 触发瞬间
+///     `GetForegroundWindow()` 就是目标窗口），所以一次 `SetWindowPos` 就能
+///     把它插到目标窗口下面，不需要任何等待。
+///   - **慢路径**：万一前台还没落地（`release` 返回 false），隔十几毫秒再问，
+///     最多追到 `CAP`。硬放的话窗口会插到普通层顶部，正好盖住用户刚点的应用。
+///
+/// `CAP` 只是兜底，宁可位置不完美也不能让置顶一直压着别人。
+const PIN_RELEASE_RETRY: Duration = Duration::from_millis(16);
+const PIN_RELEASE_CAP: Duration = Duration::from_millis(120);
+
+/// 窗口刚失焦：摘置顶。抢回来的动画帧都还没过就办完了，用户感觉不到延迟。
+fn schedule_pin_release(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    if !should_manage_summon_pin(&state.snapshot()) {
+        return; // 常驻置顶自己会管，别动
+    }
+    if !state.pinned.load(Ordering::SeqCst) {
+        return; // 没加过，不用摘
+    }
+
+    // 认领这一轮：后面任何一次唤出 / 失焦都会让这个号作废
+    let epoch = state.pin_epoch.fetch_add(1, Ordering::SeqCst) + 1;
+
+    // 快路径：当场放，连线程都不用开
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        if topmost::release(&window, true) {
+            state.pinned.store(false, Ordering::SeqCst);
+            state.pin_released_at.store(now_ms(), Ordering::SeqCst);
+            return;
+        }
+    }
+
+    // 慢路径：前台还没落地，追几拍
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let deadline = Instant::now() + PIN_RELEASE_CAP;
+        loop {
+            let state = handle.state::<AppState>();
+            if state.pin_epoch.load(Ordering::SeqCst) != epoch {
+                return; // 期间又唤出/又失焦了，这一单作废
+            }
+            let Some(window) = handle.get_window(MAIN_WINDOW) else { return };
+            if window.is_focused().unwrap_or(false) {
+                return; // 又回来了，保持置顶
+            }
+
+            // 追到上限就别等了：宁可位置不完美，也不能让置顶一直压着别人
+            let last_chance = Instant::now() >= deadline;
+            if topmost::release(&window, !last_chance) || last_chance {
+                state.pinned.store(false, Ordering::SeqCst);
+                state.pin_released_at.store(now_ms(), Ordering::SeqCst);
+                return;
+            }
+            std::thread::sleep(PIN_RELEASE_RETRY);
+        }
+    });
+}
+
+/// 刚让出前台又立刻回来了（比如 Alt+Tab 过去瞟一眼就切回、或者被系统通知
+/// 闪了一下）：把置顶补回去，别让一次一过性的失焦把置顶弄丢。
+///
+/// 这个「补回来」的窗口期和 Electron 版 250ms 防抖是同一个意思，区别只是
+/// 那版是「先等着不放」，这里是「先放、马上回来就再抬一次」——前者会让人
+/// 看着窗口压在新应用上面，后者不会。
+const PIN_RESTORE_WINDOW: u64 = 250;
+
+fn restore_pin_if_bounced_back(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+    if !should_manage_summon_pin(&state.snapshot()) {
+        return;
+    }
+    if state.pinned.load(Ordering::SeqCst) {
+        return; // 还在，不用补
+    }
+    let released_at = state.pin_released_at.load(Ordering::SeqCst);
+    if released_at == 0 || now_ms().saturating_sub(released_at) > PIN_RESTORE_WINDOW {
+        return; // 不是刚放掉的那一次
+    }
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        pin_on_summon(app, &window);
+        state.pin_released_at.store(0, Ordering::SeqCst);
+    }
+}
+
+/// 单调毫秒数，只用来比先后。
+fn now_ms() -> u64 {
+    static START: std::sync::OnceLock<Instant> = std::sync::OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_millis() as u64
+}
+
+/// 把窗口唤到最前：老板键、托盘、第二次启动都走这里。
+///
+/// 「唤出时置顶」只在这一下抬，窗口让出前台后由 `schedule_pin_release` 放下。
+pub(crate) fn summon_window(app: &tauri::AppHandle) {
+    let Some(window) = app.get_window(MAIN_WINDOW) else { return };
+    let _ = window.show();
+    let _ = window.unminimize();
+    let _ = window.set_focus();
+
+    // 注意这跟常驻置顶（config.always_on_top）是两件事——
+    // 常驻置顶已经开着时不用管，没开才需要临时抬一下。
+    if should_manage_summon_pin(&app.state::<AppState>().snapshot()) {
+        pin_on_summon(app, &window);
+    } else {
+        // 没开唤出置顶：顺手清掉可能残留的那一层（比如上次没摘干净）
+        release_summon_pin(app, false);
+    }
+}
+
 /// 老板键的行为：在前台就收起，不在前台就唤到最前。
 fn toggle_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_window(MAIN_WINDOW) else { return };
@@ -195,20 +363,13 @@ fn toggle_window(app: &tauri::AppHandle) {
     let focused = window.is_focused().unwrap_or(false);
 
     if config.hotkey.action == "toggle" && visible && focused {
+        // 收起之前先把唤出置顶摘掉：藏起来的窗口还挂着最高层，下次唤出的状态就乱了
+        release_summon_pin(app, false);
         let _ = window.hide();
         return;
     }
 
-    let _ = window.show();
-    let _ = window.unminimize();
-    let _ = window.set_focus();
-
-    // 唤出时临时置顶：用最高层级压过别的置顶窗口。
-    // 注意这跟常驻置顶（config.always_on_top）是两件事——
-    // 常驻置顶已经开着时不用管，没开才需要临时抬一下，并在失焦时放下。
-    if config.hotkey.pin_top && !config.always_on_top {
-        let _ = window.set_always_on_top(true);
-    }
+    summon_window(app);
 }
 
 /// 托盘图标：窗口收进后台之后仍然有一个能点回来的入口。
@@ -234,13 +395,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         // 左键点击不要弹菜单，让它走下面的 on_tray_icon_event 去唤窗口
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
-            "show" => {
-                if let Some(w) = app.get_window(MAIN_WINDOW) {
-                    let _ = w.show();
-                    let _ = w.unminimize();
-                    let _ = w.set_focus();
-                }
-            }
+            "show" => summon_window(app),
             "toggle-bar" => commands::toggle_tab_bar(app),
             "quit" => app.exit(0),
             _ => {}
@@ -389,16 +544,17 @@ pub fn run() {
         eprintln!("[aihub] 启动时回写配置失败: {err}");
     }
     let always_on_top = config.always_on_top;
+    // Windows 上置顶不由 tao 管（原因见 topmost.rs 的长注释）：
+    // 窗口一律建在非置顶状态，建完立刻用 Win32 抬一次。
+    // 这样 tao 内部的 ALWAYS_ON_TOP 标记永远保持 false——既不会和真实状态错位，
+    // 也不会在后续任何一次窗口标志变化里把置顶「恢复」回来。
+    let tao_always_on_top = !cfg!(windows) && always_on_top;
     let window_size = config.window_size.unwrap_or(config::WindowSize { width: 1280.0, height: 820.0 });
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             // 第二次启动就把已经在跑的那个唤到前面来，而不是开第二个窗口
-            if let Some(window) = app.get_window(MAIN_WINDOW) {
-                let _ = window.show();
-                let _ = window.unminimize();
-                let _ = window.set_focus();
-            }
+            summon_window(app);
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
@@ -409,6 +565,9 @@ pub fn run() {
         .manage(AppState {
             config: Mutex::new(config),
             views: Mutex::new(ViewManager::default()),
+            pinned: AtomicBool::new(false),
+            pin_epoch: AtomicU64::new(0),
+            pin_released_at: AtomicU64::new(0),
         })
         .invoke_handler(commands::handler())
         .setup(move |app| {
@@ -420,10 +579,15 @@ pub fn run() {
                 .min_inner_size(layout::MIN_SANE_WIDTH as f64, layout::MIN_SANE_HEIGHT as f64)
                 .center()
                 // 功能 1：常驻置顶，默认开启。
-                // Windows 上 Tauri 走的是 SetWindowPos(HWND_TOPMOST)，
-                // 也就是系统层面的置顶，不是应用内的 z-order。
-                .always_on_top(always_on_top)
+                // Windows 上走 topmost::pin（SetWindowPos(HWND_TOPMOST)），
+                // 是系统层面的置顶，不是应用内的 z-order；见上面 tao_always_on_top 的注释。
+                .always_on_top(tao_always_on_top)
                 .build()?;
+
+            #[cfg(windows)]
+            if always_on_top && !topmost::pin(&window) {
+                eprintln!("[aihub] 常驻置顶没生效（系统拒绝了 SetWindowPos）");
+            }
 
             // macOS 上内容视图默认铺满整个窗口框（系统标题栏压在内容顶上），
             // 44px 的标签栏会被盖掉大半。必须在建 webview 之前摘掉：内容区由此
@@ -477,14 +641,13 @@ pub fn run() {
                 }
                 WindowEvent::Moved(_) => request_layout(&resize_handle),
                 WindowEvent::Focused(false) => {
-                    // 快捷键唤出时临时抬起的置顶，失焦就放下——不能一直压着别人。
-                    // 用户明确开了常驻置顶的话不动它。
-                    let cfg = resize_handle.state::<AppState>().snapshot();
-                    if cfg.hotkey.pin_top && !cfg.always_on_top {
-                        if let Some(w) = resize_handle.get_window(MAIN_WINDOW) {
-                            let _ = w.set_always_on_top(false);
-                        }
-                    }
+                    // 窗口让出前台：把快捷键唤出时临时抬起的置顶放下。
+                    // 当场放，不等待——见 schedule_pin_release 的注释。
+                    schedule_pin_release(&resize_handle);
+                }
+                WindowEvent::Focused(true) => {
+                    // 刚让出前台又立刻回来了：置顶补回去，别被一次闪烁弄丢
+                    restore_pin_if_bounced_back(&resize_handle);
                 }
                 WindowEvent::CloseRequested { api, .. } => {
                     save_window_preferences(&resize_handle);
@@ -493,6 +656,9 @@ pub fn run() {
                     let cfg = resize_handle.state::<AppState>().snapshot();
                     if cfg.hotkey.close_to_tray {
                         api.prevent_close();
+                        // 藏起来之前先摘置顶，否则它会以最高层藏在后台，
+                        // 下次唤出时「这一层是谁加的」就对不上了。
+                        release_summon_pin(&resize_handle, false);
                         if let Some(w) = resize_handle.get_window(MAIN_WINDOW) {
                             let _ = w.hide();
                         }
@@ -581,5 +747,26 @@ mod tests {
         let cfg = Config::default();
         assert!(cfg.hotkey.tray, "托盘图标默认开着");
         assert!(tray_needed(&cfg));
+    }
+
+    #[test]
+    fn summon_pin_steps_aside_when_always_on_top_takes_over() {
+        // 常驻关着、唤出置顶开着 —— 这一层归唤出管（用户报的那个场景就停在这）
+        let mut cfg = Config::default();
+        cfg.always_on_top = false;
+        assert!(cfg.hotkey.pin_top, "唤出置顶默认开着");
+        assert!(should_manage_summon_pin(&cfg));
+
+        // 常驻置顶开着（默认值就是这个）：整层置顶归常驻，唤出不许插手，
+        // 否则「让出前台」会把用户要的常驻置顶一起摘掉
+        let cfg = Config::default();
+        assert!(cfg.always_on_top, "常驻置顶默认开着");
+        assert!(!should_manage_summon_pin(&cfg), "常驻置顶开着时不许动置顶");
+
+        // 唤出置顶被用户关掉：什么都不做
+        let mut cfg = Config::default();
+        cfg.always_on_top = false;
+        cfg.hotkey.pin_top = false;
+        assert!(!should_manage_summon_pin(&cfg), "用户关了唤出置顶就不该再去抬");
     }
 }
