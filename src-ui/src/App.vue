@@ -1,22 +1,26 @@
 <script setup lang="ts">
 // 根组件：外壳布局骨架。
-// 对应原 index.html 的 <body> 结构：bar（tabs + host + tools）、投放区、分隔条、stage、toast。
-// 设置面板、添加面板等在后续阶段逐步接入。
-import { computed, onMounted, watch } from 'vue';
+// 对应原 index.html 的 <body> 结构：bar（tabs + host + tools）、投放区、分隔条、stage、toast、设置面板、添加面板。
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { useLayoutStore } from '@/stores/layout';
+import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';
+import { IS_MAC } from '@/utils/env';
 import TabBar from '@/components/TabBar.vue';
 import Toolbar from '@/components/Toolbar.vue';
 import DropZones from '@/components/DropZones.vue';
 import SplitDividers from '@/components/SplitDividers.vue';
+import SettingsPanel from '@/components/SettingsPanel.vue';
+import AddPanel from '@/components/AddPanel.vue';
 
 const appStore = useAppStore();
 const statusStore = useStatusStore();
 const layoutStore = useLayoutStore();
+const overlayStore = useOverlayStore();
 const { visible, isError, sticky, message, actionLabel, dismiss } = useToast();
 
-/** 中央提示文字（无服务/加载失败/加载中/快捷键提示） */
+/** 中央提示文字（无服务/加载失败/加载中） */
 const stageMsg = computed(() => {
   const svc = appStore.services.find((s) => s.id === appStore.activeId);
   if (!svc) return '还没有任何服务，点右上角 ⚙ 添加一个吧。';
@@ -33,8 +37,8 @@ const stageMsg = computed(() => {
 // 标签栏收起时，站点视图顶边从 44 变 0，外壳要同步撤掉顶栏
 watch(
   () => appStore.tabBarVisible,
-  (visible) => {
-    document.body.classList.toggle('no-tabbar', visible === false);
+  (visibleVal) => {
+    document.body.classList.toggle('no-tabbar', visibleVal === false);
   },
   { immediate: true },
 );
@@ -49,10 +53,52 @@ watch(
   { immediate: true },
 );
 
+// ---- 全局键盘：F5 / Ctrl+R 刷新、Esc 关闭面板 ----
+function onKeydown(event: KeyboardEvent) {
+  const mod = IS_MAC ? event.metaKey : event.ctrlKey;
+
+  // F5 / Ctrl+R 刷新当前标签，按住 Shift 硬刷新（只在焦点位于外壳时生效）
+  const wantsReload = event.key === 'F5' || (mod && (event.key === 'r' || event.key === 'R'));
+  if (wantsReload && !event.repeat) {
+    event.preventDefault();
+    if (event.shiftKey) window.api.reloadHard(null);
+    else window.api.reload(null);
+    return;
+  }
+
+  // Esc：先关添加面板，再关设置面板
+  if (event.key === 'Escape') {
+    if (overlayStore.addPanelOpen) {
+      overlayStore.setAddPanel(false);
+      return;
+    }
+    if (overlayStore.settingsOpen) {
+      overlayStore.setSettings(false);
+    }
+  }
+}
+
+// ---- 页面空白处右键 ----
+function onContextMenu(event: MouseEvent) {
+  const el = event.target as HTMLElement;
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+  event.preventDefault();
+  window.api.openShellMenu({ x: Math.round(event.clientX), y: Math.round(event.clientY) });
+}
+
+let unlistenOpenSettings: (() => void) | null = null;
+
 onMounted(async () => {
   appStore.subscribe();
   statusStore.subscribe();
   layoutStore.subscribe();
+
+  // 主进程要求打开设置（托盘/菜单栏触发）
+  unlistenOpenSettings = window.api.onOpenSettings(() => overlayStore.setSettings(true));
+
+  document.addEventListener('keydown', onKeydown);
+  document.addEventListener('contextmenu', onContextMenu);
+
   try {
     const initial = await window.api.getState();
     appStore.apply(initial);
@@ -61,6 +107,12 @@ onMounted(async () => {
   } catch (err) {
     console.error('[aihub] getState 失败:', err);
   }
+});
+
+onUnmounted(() => {
+  if (unlistenOpenSettings) unlistenOpenSettings();
+  document.removeEventListener('keydown', onKeydown);
+  document.removeEventListener('contextmenu', onContextMenu);
 });
 </script>
 
@@ -72,11 +124,11 @@ onMounted(async () => {
       <Toolbar />
     </div>
 
-    <!-- 拖标签到页面区域时浮出来的投放区（P3） -->
+    <!-- 拖标签到页面区域时浮出来的投放区 -->
     <DropZones />
 
-    <!-- 添加 AI 面板（P4 接入） -->
-    <!-- 设置面板（P4 接入） -->
+    <!-- 添加 AI 面板 -->
+    <AddPanel />
 
     <div id="stage">
       <img class="brand-mark" src="/build/icon.png" alt="" width="72" height="72" />
@@ -84,8 +136,11 @@ onMounted(async () => {
       <p id="stage-msg">{{ stageMsg }}</p>
     </div>
 
-    <!-- 分屏分隔条（P3） -->
+    <!-- 分屏分隔条 -->
     <SplitDividers />
+
+    <!-- 设置面板 -->
+    <SettingsPanel />
 
     <!-- Toast -->
     <div id="toast" role="status" aria-live="polite" :class="{ show: visible, err: isError, sticky }">
