@@ -4,7 +4,10 @@
   "version": "0.4.0",
   "identifier": "io.github.openx123.aihub",
   "build": {
-    "frontendDist": "../src-ui"
+    "beforeDevCommand": "npm --prefix src-ui run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm --prefix src-ui run build",
+    "frontendDist": "../src-ui/dist"
   },
   "app": {
     "withGlobalTauri": true,
