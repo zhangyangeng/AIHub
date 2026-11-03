@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // 工具栏 + 主机名 + 中央提示文字，对应原 index.html 的 renderTools / renderAll。
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { useOverlayStore } from '@/stores/overlay';
+import { api } from '@/api';
 import { hostOf } from '@/utils/env';
 
 const appStore = useAppStore();
@@ -18,8 +19,34 @@ const host = computed(() => {
   return st.url ? hostOf(st.url) : '';
 });
 
+/** 分屏按钮的常态：多栏时点亮 + 角标写栏数（与原版 renderTools 一致） */
+const isMulti = computed(() => (appStore.panes || []).length > 1);
+
+const splitTitle = computed(() =>
+  isMulti.value
+    ? `分屏中：${appStore.panes.length} 栏（点击管理）`
+    : '左右分屏显示多个服务（可拖动分隔条调宽度）',
+);
+
+const splitBtnEl = ref<HTMLButtonElement | null>(null);
+
 function reload() {
-  window.api.reload(null);
+  api.reload(null);
+}
+
+function goHome() {
+  api.home(null);
+}
+
+/**
+ * 点 ⇔ 弹分屏菜单。菜单由主进程用原生 Menu.popup 弹，是独立弹窗，
+ * 浮在所有服务页面之上，所以这里只把按钮位置报过去，菜单项和勾选状态由主进程按 config 生成。
+ */
+function openSplitMenu() {
+  const el = splitBtnEl.value;
+  if (!el) return;
+  const rect = el.getBoundingClientRect();
+  api.openSplitMenu({ x: Math.round(rect.left), y: Math.round(rect.bottom + 4) });
 }
 
 function openAdd() {
@@ -40,6 +67,26 @@ function openSettings() {
         <polyline points="1 20 1 14 7 14" />
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
       </svg>
+    </button>
+    <button class="icon-btn" id="btn-home" title="回到该服务首页" @click="goHome">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
+      </svg>
+    </button>
+    <button
+      ref="splitBtnEl"
+      class="icon-btn"
+      id="btn-split"
+      :class="{ on: isMulti }"
+      :title="splitTitle"
+      @click="openSplitMenu"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="7" height="16" rx="1.5" />
+        <rect x="14" y="4" width="7" height="16" rx="1.5" />
+      </svg>
+      <span v-if="isMulti" class="badge">{{ appStore.panes.length }}</span>
     </button>
     <button class="icon-btn" id="btn-add" title="添加 AI 到标签栏" @click="openAdd">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

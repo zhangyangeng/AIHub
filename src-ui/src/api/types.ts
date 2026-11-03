@@ -144,7 +144,7 @@ export interface AihubApi {
   activate: (id: string) => void;
   reload: (id: string | null) => void;
   reloadHard: (id: string | null) => void;
-  home: (id: string) => void;
+  home: (id: string | null) => void;
   devtools: (id: string) => void;
   zoom: (delta: number, id?: string) => void;
 
@@ -206,7 +206,13 @@ export interface AihubApi {
 /** 全局类型声明：window.api 和 window.AIHUB_ICONS */
 declare global {
   interface Window {
-    api: AihubApi;
+    /**
+     * 标记为可选：正常业务代码一律 `import { api } from '@/api'`，
+     * 不要直接读 window.api。这里保留这个字段纯粹是调试用（devtools 里敲 api.xxx），
+     * 标成可选是为了让谁再写 `window.api.xxx` 时，TS 会报「可能为 undefined」，
+     * 在编译期就拦住，而不是等真机才炸。
+     */
+    api?: AihubApi;
     __TAURI__?: Record<string, any>;
     AIHUB_ICONS?: {
       files?: Record<string, string>;

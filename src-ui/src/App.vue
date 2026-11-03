@@ -6,7 +6,8 @@ import { useAppStore, useStatusStore } from '@/stores/app';
 import { useLayoutStore } from '@/stores/layout';
 import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';
-import { IS_MAC } from '@/utils/env';
+import { api } from '@/api';
+import { IS_MAC, prettyAccel } from '@/utils/env';
 import TabBar from '@/components/TabBar.vue';
 import Toolbar from '@/components/Toolbar.vue';
 import DropZones from '@/components/DropZones.vue';
@@ -31,7 +32,12 @@ const stageMsg = computed(() => {
   if (st.loading) {
     return '正在打开「' + svc.name + '」…';
   }
-  return '';
+  // 站点加载完成后的全局快捷键提示（与原版保持一致）
+  const acc = prettyAccel((appStore.hotkey && appStore.hotkey.accelerator) || 'Alt+Space');
+  const mod = IS_MAC ? '⌘' : 'Ctrl+';
+  return '全局唤出：' + acc
+    + ' · ' + (IS_MAC ? '⌃Tab' : 'Ctrl+Tab') + ' 切换标签'
+    + ' · ' + mod + '1~9 直达 · F5 刷新 · ' + mod + ', 设置';
 });
 
 // 标签栏收起时，站点视图顶边从 44 变 0，外壳要同步撤掉顶栏
@@ -61,8 +67,8 @@ function onKeydown(event: KeyboardEvent) {
   const wantsReload = event.key === 'F5' || (mod && (event.key === 'r' || event.key === 'R'));
   if (wantsReload && !event.repeat) {
     event.preventDefault();
-    if (event.shiftKey) window.api.reloadHard(null);
-    else window.api.reload(null);
+    if (event.shiftKey) api.reloadHard(null);
+    else api.reload(null);
     return;
   }
 
@@ -83,7 +89,7 @@ function onContextMenu(event: MouseEvent) {
   const el = event.target as HTMLElement;
   if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
   event.preventDefault();
-  window.api.openShellMenu({ x: Math.round(event.clientX), y: Math.round(event.clientY) });
+  api.openShellMenu({ x: Math.round(event.clientX), y: Math.round(event.clientY) });
 }
 
 let unlistenOpenSettings: (() => void) | null = null;
@@ -94,13 +100,13 @@ onMounted(async () => {
   layoutStore.subscribe();
 
   // 主进程要求打开设置（托盘/菜单栏触发）
-  unlistenOpenSettings = window.api.onOpenSettings(() => overlayStore.setSettings(true));
+  unlistenOpenSettings = api.onOpenSettings(() => overlayStore.setSettings(true));
 
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('contextmenu', onContextMenu);
 
   try {
-    const initial = await window.api.getState();
+    const initial = await api.getState();
     appStore.apply(initial);
     // 首屏 layout 事件可能在页面加载完成前就发过了，主动补拉一次几何
     await layoutStore.refresh();

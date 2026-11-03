@@ -43,9 +43,15 @@ const dragGhostPos = ref({ x: 0, y: 0 });
 const dropTargets = ref<DropTarget[]>([]);
 const hotIndex = ref<number | null>(null);
 
-const appStore = useAppStore();
-const overlayStore = useOverlayStore();
-const layoutStore = useLayoutStore();
+// ⚠️ Pinia store 不能在这里直接取。
+// main.ts 为了让全局手势在挂载前就装好，会在 createPinia() 之前 import 本模块；
+// 而模块顶层调用 useXxxStore() 是在 import 阶段求值的，那时 Pinia 还没装，
+// 会当场抛「getActivePinia() was called but there was no active Pinia」，
+// 导致 main.ts 整个模块图失败、应用挂不上去（表现为外壳一片空白，标签栏也没有）。
+// 所以统一改成用到时再解析。
+const appStore = () => useAppStore();
+const overlayStore = () => useOverlayStore();
+const layoutStore = () => useLayoutStore();
 const { toast } = useToast();
 
 /** N 个格子在内容区里的位置，与 Rust compute_grid 一致：1 整屏 / 2 左右 / 3 左一右二 / 4 田字格 */
@@ -55,7 +61,7 @@ function slotRects(n: number): SlotRect[] {
   const r = layer.getBoundingClientRect();
   const W = r.width;
   const H = r.height;
-  const g = layoutStore.gap || 4;
+  const g = layoutStore().gap || 4;
   const halfW = Math.round((W - g) / 2);
   const rightW = W - g - halfW;
   const halfH = Math.round((H - g) / 2);
@@ -85,14 +91,14 @@ function slotRects(n: number): SlotRect[] {
 
 /** 拖拽开始时按当前几何铺一遍投放区 */
 function buildDropZones() {
-  const cur = appStore.panes || [];
-  const max = appStore.maxPanes || 4;
+  const cur = appStore().panes || [];
+  const max = appStore().maxPanes || 4;
   const slots = Math.min(max, cur.length + (cur.length < max ? 1 : 0));
   const rects = slotRects(slots);
 
   dropTargets.value = rects.map((rect, i) => {
     const occupant = cur[i];
-    const svc = occupant ? appStore.services.find((x) => x.id === occupant) : null;
+    const svc = occupant ? appStore().services.find((x) => x.id === occupant) : null;
     const label = svc
       ? svc.id === (tabDrag && tabDrag.id)
         ? '放回原位'
@@ -115,9 +121,9 @@ function startTabDrag() {
   if (!tabDrag) return;
   tabDrag.active = true;
   document.body.classList.add('dragging-tab');
-  overlayStore.setDragYielding(true);
+  overlayStore().setDragYielding(true);
   buildDropZones();
-  dragGhostName.value = (appStore.services.find((s) => s.id === tabDrag!.id) || {}).name || tabDrag!.id;
+  dragGhostName.value = (appStore().services.find((s) => s.id === tabDrag!.id) || {}).name || tabDrag!.id;
   dragGhostPos.value = { x: tabDrag.fromX, y: tabDrag.fromY };
   dragActive.value = true;
   // 兜底：鼠标事件丢了（系统打断、指针跑到屏幕外），让位状态会永久卡住
@@ -133,7 +139,7 @@ function cancelTabDrag() {
   hotIndex.value = null;
   hotZone = null;
   document.body.classList.remove('dragging-tab');
-  overlayStore.setDragYielding(false);
+  overlayStore().setDragYielding(false);
   tabDrag = null;
 }
 
@@ -153,7 +159,7 @@ function tabUnder(x: number, y: number): { id: string; after: boolean } | null {
 
 /** 拖拽过程中根据鼠标位置点亮对应的投放区 */
 function updateHotZone(clientX: number, clientY: number): boolean {
-  const top = layoutStore.top || 0;
+  const top = layoutStore().top || 0;
   if (clientY < top) {
     hotZone = null;
     hotIndex.value = null;
@@ -187,7 +193,7 @@ async function applyDrop(dragId: string): Promise<boolean> {
 
 /** 拖拽排序：只排「顶栏上看得见的」，主进程会把收起来的服务按原相对位置塞回去 */
 async function moveTab(dragId: string, targetId: string, after: boolean) {
-  const ids = appStore.services.filter((s) => !s.hidden).map((s) => s.id);
+  const ids = appStore().services.filter((s) => !s.hidden).map((s) => s.id);
   const from = ids.indexOf(dragId);
   if (from < 0) return;
   ids.splice(from, 1);
@@ -245,7 +251,7 @@ export function useTabDrag() {
       hotZone = null;
       hotIndex.value = null;
       document.body.classList.remove('dragging-tab');
-      overlayStore.setDragYielding(false);
+      overlayStore().setDragYielding(false);
       await moveTab(drag.id, hit.id, hit.after);
       return;
     }
@@ -255,9 +261,9 @@ export function useTabDrag() {
     hotZone = null;
     hotIndex.value = null;
     document.body.classList.remove('dragging-tab');
-    overlayStore.setDragYielding(false);
+    overlayStore().setDragYielding(false);
     if (ok) {
-      window.api.focusPane(drag.id);
+      api.focusPane(drag.id);
     }
     // 记下刚拖完，压掉随之而来的 click（见 main.ts 里的 click 拦截）
     lastDragEndedAt.value = dragEndedAt;

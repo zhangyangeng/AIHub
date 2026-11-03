@@ -3,6 +3,7 @@
 import { computed, ref } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useToast } from '@/composables/useToast';
+import { api } from '@/api';
 import { IS_MAC, prettyAccel, keyNameFromEvent, acceleratorFromEvent } from '@/utils/env';
 
 const appStore = useAppStore();
@@ -50,7 +51,7 @@ function finishRecording() {
 }
 
 async function applyHotkey(patch: Partial<NonNullable<typeof hk.value>>): Promise<boolean> {
-  const res = await window.api.setHotkey(patch);
+  const res = await api.setHotkey(patch);
   if (!res || !res.ok) {
     toast((res && res.error) || '快捷键设置失败', true);
     return false;

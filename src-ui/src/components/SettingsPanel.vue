@@ -4,6 +4,7 @@ import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';
+import { api } from '@/api';
 import { IS_MAC, escapeHtml } from '@/utils/env';
 import ServiceRow from '@/components/ServiceRow.vue';
 import HotkeySection from '@/components/HotkeySection.vue';
@@ -66,18 +67,18 @@ function onRemoved(state: unknown) {
 async function addService() {
   const name = addName.value;
   const url = addUrl.value;
-  const res = await window.api.addService({ name, url });
+  const res = await api.addService({ name, url });
   if (!res || !res.ok) return toast((res && res.error) || '添加失败', true);
   addName.value = '';
   addUrl.value = '';
   toast('已添加「' + name.trim() + '」');
-  if (res.id) window.api.activate(res.id);
+  if (res.id) api.activate(res.id);
 }
 
 // ---- 偏好设置 ----
 async function togglePreload(event: Event) {
   const on = (event.target as HTMLInputElement).checked;
-  const res = await window.api.setPreload(on);
+  const res = await api.setPreload(on);
   if (!res || !res.ok) return toast('设置失败', true);
   appStore.apply({ ...appStore.$state, preload: Boolean(res.preload) });
   toast(on ? '已开启预加载：启动时把所有标签的页面都加载一遍' : '已关闭预加载：只加载标签栏当前要显示的那几栏');
@@ -85,7 +86,7 @@ async function togglePreload(event: Event) {
 
 async function toggleOnTop(event: Event) {
   const on = (event.target as HTMLInputElement).checked;
-  const res = await window.api.setAlwaysOnTop(on);
+  const res = await api.setAlwaysOnTop(on);
   if (!res || !res.ok) return toast('设置失败', true);
   appStore.apply({ ...appStore.$state, alwaysOnTop: Boolean(res.alwaysOnTop) });
   toast(on ? '已开启常驻置顶：窗口会一直压在其它程序上面' : '已关闭常驻置顶');
@@ -93,7 +94,7 @@ async function toggleOnTop(event: Event) {
 
 async function toggleTabBar(event: Event) {
   const visibleVal = (event.target as HTMLInputElement).checked;
-  const res = await window.api.setTabBar(visibleVal);
+  const res = await api.setTabBar(visibleVal);
   if (!res || !res.ok) return toast('设置失败', true);
   appStore.apply({ ...appStore.$state, tabBarVisible: Boolean(res.tabBarVisible) });
   toast(
@@ -114,7 +115,7 @@ const themeIndex = computed(() => {
 });
 
 async function setTheme(theme: string) {
-  const res = await window.api.setTheme(theme);
+  const res = await api.setTheme(theme);
   if (!res || !res.ok) return toast('设置失败', true);
   const nextTheme = res.theme || theme;
   appStore.apply({ ...appStore.$state, theme: nextTheme });
@@ -138,7 +139,7 @@ const napIndex = computed(() => {
 
 async function setNap(want: string) {
   const payload = want === 'off' ? { enabled: false } : { enabled: true, minutes: Number(want) };
-  const res = await window.api.setHibernate(payload);
+  const res = await api.setHibernate(payload);
   if (!res || !res.ok) return toast((res && res.error) || '设置失败', true);
   appStore.apply({ ...appStore.$state, hibernate: res.hibernate });
   toast(
@@ -156,14 +157,14 @@ const hasUpdate = ref(false);
 const updating = ref(false);
 
 function loadVersion() {
-  window.api.getVersion().then((v) => (version.value = String(v))).catch(() => {});
+  api.getVersion().then((v) => (version.value = String(v))).catch(() => {});
 }
 
 async function checkUpdate() {
   checking.value = true;
   updateHint.value = '正在检查…';
   try {
-    const info = await window.api.checkUpdate();
+    const info = await api.checkUpdate();
     if (info.error) {
       updateHint.value = '检查失败：' + info.error;
     } else if (info.available) {
@@ -184,7 +185,7 @@ async function forceUpdate() {
   updating.value = true;
   updateHint.value = '正在下载…';
   try {
-    await window.api.installUpdate();
+    await api.installUpdate();
   } catch (err) {
     updateHint.value = '更新失败：' + err;
     updating.value = false;
@@ -207,7 +208,7 @@ watch(
 
 let unlistenProgress: (() => void) | null = null;
 onMounted(() => {
-  unlistenProgress = window.api.onUpdateProgress((p) => onUpdateProgress(p));
+  unlistenProgress = api.onUpdateProgress((p) => onUpdateProgress(p));
 });
 onUnmounted(() => {
   if (unlistenProgress) unlistenProgress();

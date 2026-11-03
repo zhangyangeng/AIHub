@@ -130,3 +130,13 @@ export const api: AihubApi = {
   getVersion: () => invoke('app_version'),
   onUpdateProgress: (handler) => on('update:progress', handler),
 };
+
+/**
+ * 挂回全局（仅供 devtools 调试）。
+ *
+ * 业务代码统一 `import { api } from '@/api'`，不要读 window.api。
+ * 之所以还要挂一次：在 devtools 控制台里手工敲 api.getState() 之类看状态很方便，
+ * 少了这一句 window.api 就是 undefined（这也是之前「点按钮没反应」的元凶——
+ * 当年大量组件直接调 window.api.xxx，而这里忘了赋值）。
+ */
+window.api = api;

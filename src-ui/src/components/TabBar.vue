@@ -5,6 +5,7 @@ import { computed } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { builtinIcon } from '@/utils/icons';
 import { useToast } from '@/composables/useToast';
+import { api } from '@/api';
 import { useTabDrag } from '@/composables/useTabDrag';
 import type { Service } from '@/api/types';
 
@@ -76,7 +77,7 @@ function onClick(svc: Service) {
 function onAuxClick(event: MouseEvent, svc: Service) {
   if (event.button === 1) {
     event.preventDefault();
-    window.api.reload(svc.id);
+    api.reload(svc.id);
   }
 }
 
@@ -87,13 +88,13 @@ function onContextMenu(event: MouseEvent, svc: Service) {
 }
 
 async function onClose(svc: Service) {
-  const res = await window.api.setServiceHidden(svc.id, true);
+  const res = await api.setServiceHidden(svc.id, true);
   if (!res || !res.ok) return toast((res && res.error) || '收起失败', true);
   toastAction(
     '已收起「' + svc.name + '」，可在设置里放回来',
     '撤销',
     async () => {
-      const back = await window.api.setServiceHidden(svc.id, false);
+      const back = await api.setServiceHidden(svc.id, false);
       if (!back || !back.ok) toast((back && back.error) || '放回失败', true);
     },
     6000,

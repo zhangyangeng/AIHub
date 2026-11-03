@@ -3,6 +3,7 @@
 import { computed, ref, watch, nextTick } from 'vue';
 import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';
+import { api } from '@/api';
 import { iconPathFor } from '@/utils/icons';
 
 const overlayStore = useOverlayStore();
@@ -49,7 +50,7 @@ watch(
 
 async function loadItems() {
   try {
-    items.value = await window.api.availableServices();
+    items.value = await api.availableServices();
   } catch (err) {
     toast('读取可添加列表失败：' + err, true);
     items.value = [];
@@ -63,7 +64,7 @@ function close() {
 
 async function add(svc: AvailableService, btn: HTMLButtonElement) {
   btn.disabled = true;
-  const res = await window.api.addBuiltin(svc.id);
+  const res = await api.addBuiltin(svc.id);
   if (!res || !res.ok) {
     btn.disabled = false;
     return toast((res && res.error) || '添加失败', true);

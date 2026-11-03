@@ -4,6 +4,7 @@ import { computed, ref, watch } from 'vue';
 import type { Service } from '@/api/types';
 import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';
+import { api } from '@/api';
 import { builtinIcon } from '@/utils/icons';
 
 const props = defineProps<{ svc: Service; index: number; confirming: boolean }>();
@@ -27,19 +28,19 @@ watch(
 const iconSrc = computed(() => builtinIcon(props.svc));
 
 async function save() {
-  const res = await window.api.updateService({ id: props.svc.id, name: name.value, url: url.value });
+  const res = await api.updateService({ id: props.svc.id, name: name.value, url: url.value });
   if (!res || !res.ok) return toast((res && res.error) || '保存失败', true);
   toast('已保存「' + name.value.trim() + '」');
 }
 
 async function openDevtools() {
-  window.api.activate(props.svc.id);
+  api.activate(props.svc.id);
   overlayStore.setSettings(false);
-  window.api.devtools(props.svc.id);
+  api.devtools(props.svc.id);
 }
 
 async function toggleHidden() {
-  const res = await window.api.setServiceHidden(props.svc.id, !props.svc.hidden);
+  const res = await api.setServiceHidden(props.svc.id, !props.svc.hidden);
   if (!res || !res.ok) return toast((res && res.error) || '操作失败', true);
   toast(props.svc.hidden ? '已放回「' + props.svc.name + '」' : '已收起「' + props.svc.name + '」');
 }
@@ -49,7 +50,7 @@ function confirmDelete() {
 }
 
 async function doRemove(wipe: boolean) {
-  const res = await window.api.removeService(props.svc.id, wipe);
+  const res = await api.removeService(props.svc.id, wipe);
   if (!res || !res.ok) return toast((res && res.error) || '删除失败', true);
   if (res.state) emit('removed', res.state);
   toast(wipe ? '已删除并清除登录数据' : '已删除');

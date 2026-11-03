@@ -2,6 +2,7 @@
 // 账号迁移区块，对应原 index.html 的登录迁移逻辑（exportLogin / importLogin）。
 import { computed, ref } from 'vue';
 import type { LoginImportResult } from '@/api/types';
+import { api } from '@/api';
 import { useToast } from '@/composables/useToast';
 
 const { toast } = useToast();
@@ -42,7 +43,7 @@ function prettyBytes(n: number | undefined): string {
 async function doExport() {
   toast('正在导出，请稍候…');
   busy.value = true;
-  const res = await window.api.exportLogin(password.value);
+  const res = await api.exportLogin(password.value);
   busy.value = false;
   if (!res || !res.ok) {
     if (res && res.canceled) return;
@@ -64,7 +65,7 @@ async function doImport() {
   const file = pendingImport.value ? pendingImport.value.file : '';
   const pwd = password.value;
   busy.value = true;
-  const res = await window.api.importLogin({ file, password: pwd, dryRun: true });
+  const res = await api.importLogin({ file, password: pwd, dryRun: true });
   busy.value = false;
   if (!res || !res.ok) {
     if (res && res.canceled) return;
@@ -87,7 +88,7 @@ async function confirmImport() {
   pendingImport.value = null;
   busy.value = true;
   setNote('正在导入，导入后会自动刷新对应标签…');
-  const res = await window.api.importLogin({ file, password: password.value, dryRun: false });
+  const res = await api.importLogin({ file, password: password.value, dryRun: false });
   busy.value = false;
   if (!res || !res.ok) {
     if (res && res.needsPassword && res.file) pendingImport.value = { file: res.file };
