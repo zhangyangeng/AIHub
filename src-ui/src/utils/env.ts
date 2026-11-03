@@ -1,5 +1,7 @@
 // 平台与通用工具，对应原 index.html 里散落的几个纯函数。
 
+import { ref } from 'vue';
+
 export const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
 
 /** 从 URL 里取 host（认不出返回空串） */
@@ -18,9 +20,30 @@ export function escapeHtml(text: unknown): string {
   );
 }
 
-/** 当前是不是深色主题（由主进程的 nativeTheme.themeSource 决定） */
+/**
+ * 当前是不是深色主题（由窗口自己的主题决定，改主题时会把它推给窗口）。
+ *
+ * 必须做成响应式的：内置 logo 的深/浅变体靠它取舍，而图标组件是 computed。
+ * 原先直接读 `matchMedia(...).matches` 是个不产生依赖的纯函数——主题切了，
+ * 媒体查询值确实变了，但没有任何 computed 知道要重算，logo 就卡在旧主题。
+ * 所以这里用一个 ref 接住媒体查询的 change 事件，读它即建立依赖。
+ */
+const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+
+const darkRef = ref(!darkQuery || darkQuery.matches);
+
+if (darkQuery) {
+  const sync = () => {
+    darkRef.value = darkQuery.matches;
+  };
+  // 老 WebView 只有已废弃的 addListener
+  if (darkQuery.addEventListener) darkQuery.addEventListener('change', sync);
+  else if (darkQuery.addListener) darkQuery.addListener(sync);
+}
+
+/** 当前是不是深色主题（响应式：主题切换后读它的 computed 会自动重算） */
 export function prefersDark(): boolean {
-  return !window.matchMedia || window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return darkRef.value;
 }
 
 /** "Command+Shift+Space" -> mac 显示 "⌘⇧Space"，其它平台原样返回 */

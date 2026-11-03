@@ -3,7 +3,7 @@
 > 复查时间：2026-11-03
 > 背景：真机联调时暴露了几个「原生单文件没问题、搬到 Vue 后悄悄失效」的问题（Pinia 顶层实例化、`window.api` 未赋值等）。这份文档系统排查**同类风险**——哪些原生逻辑依赖了 vanilla 才有的机制，迁移成 Vue 后语义变了。
 >
-> 结论：已修复 4 处致命问题（见 §一）；另有 **1 个「根因已确认的原版遗留 bug」（主题切换，见 §2.0）+ 4 个「疑似/待验证」的语义变化点**（见 §2.1~2.4）。
+> 结论：已修复 4 处致命问题（见 §一）；另修复 1 处主题相关缺陷（§2.1，已随上游 `fix: 主题切换后深浅配色不生效` 一并解决）；剩余 **3 个「疑似/待验证」的语义变化点**（见 §2.2~2.4）。
 
 ---
 
@@ -18,40 +18,9 @@
 
 ---
 
-## 二、疑似 / 待验证的语义变化点（原生逻辑搬到 Vue 后可能悄悄失效）
+## 二、语义变化点（原生逻辑搬到 Vue 后可能悄悄失效）
 
-### 2.0 【根因已确认·原版遗留 bug】主题切换完全不生效（「跟随系统」→固定值无变化）
-
-> 结论：**这是上游原版就有的 bug，不是 Vue 迁移引入的。** 后续在上游原版代码里修复后同步过来即可，本仓库前端暂不改。
-
-**完整链路与根因**：
-
-1. 前端点主题 → `api.setTheme(want)` → IPC → Rust `config_set_theme`（`commands.rs:589`）
-2. `config_set_theme` 只做 `mutate_quiet(|cfg| cfg.theme = theme.clone())` —— **仅改配置字段 + 存盘 + 广播，从未调用 `nativeTheme.themeSource`**
-3. 全库 grep 确认：Rust 端**没有任何** `nativeTheme` / `theme_source` / `set_theme_source` 调用
-4. 前端 CSS 深浅色**完全依赖 `prefers-color-scheme` 媒体查询**（`index.html:8-10` 注释明确写「主题由主进程的 nativeTheme.themeSource 控制」）
-
-**为什么「跟随系统 → 固定值」无变化**：`prefers-color-scheme` 的值由 WebView 实际主题决定，而不是由配置里的 `theme` 字段决定。既然 Rust 端从没把 `themeSource` 设置到窗口上，媒体查询永远是「跟随系统」，CSS 配色自然纹丝不动。滑块会动、`state.theme` 会变，但实际配色/logo 变体都不会变。
-
-**明确修法（Rust 端，前端零改动）**：在 `config_set_theme` 的 `mutate_quiet` 之后补上：
-
-```rust
-use tauri::Theme;
-
-app.native_theme().set_theme_source(match theme.as_str() {
-    "dark" => Theme::Dark,
-    "light" => Theme::Light,
-    _ => Theme::System,
-});
-```
-
-设置后媒体查询跟着变，前端 CSS 变量和 logo 变体（`prefersDark()`）自动生效。
-
-**与同步上游策略的关系**：这会动 Rust 后端一行（+ 一个 import）。与用户「Rust 保持不动方便同步上游」的既定策略有小冲突，但改动极小、冲突成本几乎为零，且能顺便把上游这个遗留 bug 反馈成 PR。**已决定：先不在本仓库改，记录在此，待上游修复后同步。**
-
----
-
-### 2.1 【需真机验证·高】主题切换后，内置 logo 不会换成对应深浅色变体
+### 2.1 【已修复】主题切换后，内置 logo 不会换成对应深浅色变体
 
 **原生行为**（`index.html` 1760-1783）：
 
@@ -69,15 +38,13 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 });
 ```
 
-**Vue 版现状**：`SettingsPanel.vue` 的 `setTheme()` 只做了 `appStore.apply({ theme: ... })`，**没有触发任何 logo 重渲染**；且全工程**没有任何 `matchMedia('(prefers-color-scheme)')` 监听**。
+**Vue 版原先的问题**：`SettingsPanel.vue` 的 `setTheme()` 只做了 `appStore.apply({ theme: ... })`，**没有触发任何 logo 重渲染**；且全工程**没有任何 `matchMedia('(prefers-color-scheme)')` 监听**。
 
-**为什么会失效**：图标变体由 `builtinIcon()` → `iconPathFor()` → `prefersDark()` 决定，而 `prefersDark()` 是**非响应式的纯函数**（直接读 `matchMedia(...).matches`）。Vue 组件里 `iconSrc` 的响应式依赖只有 `props.svc` / `appStore.services`，**不依赖 `prefersDark()` 的结果**。主题切换只改了 `appStore.theme`（一个没被 `iconSrc` 读到的字段），所以 logo 变体不会重算，会卡在旧主题的图。
+**为什么会失效**：图标变体由 `builtinIcon()` → `iconPathFor()` → `prefersDark()` 决定，而 `prefersDark()` 原本是**非响应式的纯函数**（直接读 `matchMedia(...).matches`）。Vue 组件里 `iconSrc` 的响应式依赖只有 `props.svc` / `appStore.services`，**不依赖 `prefersDark()` 的结果**。主题切换只改了 `appStore.theme`（一个没被 `iconSrc` 读到的字段），所以 logo 变体不会重算，会卡在旧主题的图。
 
 **影响**：深色↔浅色切换后，内置站点 logo（尤其黑白单色 logo）颜色不对，直到下次触发 services 变更才恢复。
 
-**修复方向**（待确认后再改）：
-- 方案 A：把「当前是否深色」做成响应式状态（`matchMedia` 监听 `change` 事件更新一个 `ref`），`builtinIcon` 依赖它，主题变化时自动重算。这是最贴合 Vue 的做法。
-- 方案 B：在 `setTheme` 成功后，手动触发一次「图标重算」的标记（如 `appStore` 加一个 `themeEpoch` 计数器，`iconSrc` 读它）。
+**已采用的修法**（`utils/env.ts`）：把「当前是否深色」做成响应式——用 `ref` 接住 `matchMedia('(prefers-color-scheme: dark)')` 的 `change` 事件，`prefersDark()` 返回该 `ref` 的值。这样 `ServiceRow` 的 `computed(() => builtinIcon(svc))`、`TabBar` 渲染期调用的 `iconSrc()`、`AddPanel` 的 `iconPathFor()` 都会自动重算，等价于原版那两个 `renderTabs()` / `renderServiceList()`，但不需要手写重画。
 
 ### 2.2 【需真机验证·中】`statusStore.statusOf` 的「边读边写」模式
 
@@ -120,11 +87,10 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 
 ## 四、建议处理顺序
 
-1. **【原版 bug，待上游修复后同步】2.0**：主题切换不生效——根因是 Rust 端从未设置 `nativeTheme.themeSource`。已决定不在本仓库改，在上游原版里修完再同步（修法见 §2.0）。
-2. **【先验证】2.1**：真机切一次深/浅主题，看内置 logo 颜色对不对。这是最可能出问题的，也是最影响体验的。
-3. **【验证】2.2**：开 devtools 看首次渲染有没有「在渲染期间修改状态」告警。
-4. **【验证】2.4**：打开设置面板，看主题/休眠滑块有没有「滑一下」。
-5. **【参考】2.3**：代码评审时标记，单实例场景无需处理。
+1. **【先真机验证】2.1**：切一次深/浅主题，确认配色和内置 logo 变体都跟着变。Rust 端推的是窗口主题，外壳 webview 的 `prefers-color-scheme` 是否随之更新需实测。
+2. **【验证】2.2**：开 devtools 看首次渲染有没有「在渲染期间修改状态」告警。
+3. **【验证】2.4**：打开设置面板，看主题/休眠滑块有没有「滑一下」。
+4. **【参考】2.3**：代码评审时标记，单实例场景无需处理。
 
 ---
 
@@ -138,4 +104,11 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () 
 | `window.api` 类型改可选 | `api/types.ts` | 编译期防回归 |
 | 工具栏缺「首页」「分屏」按钮 | `components/Toolbar.vue` | 按原版补齐 |
 | `home` 签名 `string`→`string\|null` | `api/types.ts` | 对齐 reload |
+
+### 后续同步上游的修复
+
+| 问题 | 文件 | 说明 |
+|---|---|---|
+| 主题切换后深浅配色不生效 | `src-tauri/src/commands.rs`、`lib.rs` | 从 `fix/theme-switch-not-applied` cherry-pick；改主题时推给窗口，启动时按配置建窗口 |
+| 内置 logo 深浅变体不跟随主题 | `src-ui/src/utils/env.ts` | 把「当前是否深色」改为响应式，等价于原版的 `renderTabs()` 重画 |
 | CSP 放行 HMR | `index.html` | `ws://localhost:1420` |
