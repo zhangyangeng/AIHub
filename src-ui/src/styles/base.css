@@ -250,9 +250,10 @@ body.dragging-tab .dz.empty.hot {
 @media (hover: hover) and (pointer: fine) {
   .tab:hover { background: var(--hover); color: var(--fg); }
 }
-/* 选中：不加底色、不加侧边色条，只把文字提亮加粗，靠对比区分 */
+/* 选中：底色比悬浮深一档（--active 对 --hover），并提亮加粗。
+   两者若一样重，鼠标划过其他标签时就分不清当前在哪一栏。 */
 .tab.active {
-  background: transparent;
+  background: var(--active);
   color: var(--fg-strong);
   font-weight: 600;
 }
@@ -320,9 +321,11 @@ body.dragging-tab .dz.empty.hot {
 }
 .tab.drop-before::before { left: -3px; }
 .tab.drop-after::after { right: -3px; }
-/* 已经在分屏布局里的标签：同样不加色条，只把底色压深一点点 */
+/* 分屏栏里的标签：用淡底和普通标签区分。
+   选择器权重与 .tab.active 相同且排在其后，选中态必须在下面重新声明，
+   否则底色会被 --stripe 覆盖。 */
 .tab.pane { color: var(--fg); background: var(--stripe); }
-.tab.pane.active { background: transparent; color: var(--fg-strong); }
+.tab.pane.active { background: var(--active); color: var(--fg-strong); }
 .tab .dot {
   width: 8px; height: 8px;
   border-radius: 50%;
