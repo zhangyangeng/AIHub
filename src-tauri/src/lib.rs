@@ -550,6 +550,9 @@ pub fn run() {
     // 也不会在后续任何一次窗口标志变化里把置顶「恢复」回来。
     let tao_always_on_top = !cfg!(windows) && always_on_top;
     let window_size = config.window_size.unwrap_or(config::WindowSize { width: 1280.0, height: 820.0 });
+    // 窗口一建出来就得带上上次选的主题，否则启动瞬间是「跟随系统」，
+    // 要等用户再点一次设置才纠正过来（见 commands::apply_theme 的注释）。
+    let start_theme = commands::native_theme(&config.theme);
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
@@ -578,6 +581,10 @@ pub fn run() {
                 .inner_size(window_size.width, window_size.height)
                 .min_inner_size(layout::MIN_SANE_WIDTH as f64, layout::MIN_SANE_HEIGHT as f64)
                 .center()
+                // 主题跟着配置走：None = 跟随系统。
+                // 这里给的是「偏好」，外壳 webview 建出来时就会带上它，
+                // 所以第一帧的配色和 logo 变体就是对的。
+                .theme(start_theme)
                 // 功能 1：常驻置顶，默认开启。
                 // Windows 上走 topmost::pin（SetWindowPos(HWND_TOPMOST)），
                 // 是系统层面的置顶，不是应用内的 z-order；见上面 tao_always_on_top 的注释。

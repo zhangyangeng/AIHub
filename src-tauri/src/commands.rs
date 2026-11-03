@@ -9,7 +9,7 @@
 //! 本文件里的 `mutate()` 辅助函数把这件事收口了——用它，别自己 lock。
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter, Manager, Theme};
 
 use crate::config::{self, Config};
 use crate::layout::{self, MAX_PANES};
@@ -585,13 +585,42 @@ pub fn config_set_hibernate(app: AppHandle, input: HibernateInput) -> serde_json
     serde_json::json!({ "ok": true, "enabled": cfg.hibernate.enabled, "minutes": cfg.hibernate.minutes })
 }
 
+/// 配置里的主题字符串 -> 原生主题。`system` / 未知值都对应 `None`，即交给系统决定。
+pub fn native_theme(theme: &str) -> Option<Theme> {
+    match theme {
+        "dark" => Some(Theme::Dark),
+        "light" => Some(Theme::Light),
+        _ => None,
+    }
+}
+
+/// 把主题真正推到窗口上。
+///
+/// 只改配置里的 `theme` 字段是**看不见任何变化**的：前端的深浅色变量和内置 logo
+/// 变体全靠 `prefers-color-scheme` 媒体查询取舍，而这个媒体查询跟的是窗口/webview
+/// 自己的主题，跟配置文件无关。所以每次改完主题都得再走一遍这里。
+///
+/// 推下去之后媒体查询会跟着变：Windows 上窗口主题一变，运行时会连带把同一窗口下
+/// 所有 webview 的首选配色方案一起改掉（WebView2 的 SetPreferredColorScheme），
+/// 所以站点页面里的深浅色也跟着生效；macOS 上则是改应用的 NSAppearance。
+/// 前端另有 `matchMedia('(prefers-color-scheme)')` 监听负责重画标签栏 logo。
+pub fn apply_theme(app: &AppHandle, theme: &str) {
+    let Some(window) = app.get_window(MAIN_WINDOW) else { return };
+    if let Err(err) = window.set_theme(native_theme(theme)) {
+        eprintln!("[aihub] 应用主题失败: {err}");
+    }
+}
+
 #[tauri::command]
 pub fn config_set_theme(app: AppHandle, theme: String) -> serde_json::Value {
-    let ok = ["dark", "light", "system"].contains(&theme.as_str());
-    if ok {
-        mutate_quiet(&app, |cfg| cfg.theme = theme.clone());
+    if !["dark", "light", "system"].contains(&theme.as_str()) {
+        return serde_json::json!({ "ok": false, "error": "不支持的主题" });
     }
-    serde_json::json!({ "ok": ok })
+    mutate_quiet(&app, |cfg| cfg.theme = theme.clone());
+    apply_theme(&app, &theme);
+    // 前端拿 res.theme 回填 state.theme（滑块位置和提示文案都靠它），
+    // 少回一个字段滑块就会退回「跟随系统」。
+    serde_json::json!({ "ok": true, "theme": theme })
 }
 
 #[derive(Deserialize)]
