@@ -22,9 +22,20 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src-ui/package-lock.json
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+      # 构建脚本要读 frontendDist（../src-ui/dist），干净检出上这个目录不存在，
+      # 不先构建前端的话 cargo 阶段就会报错。
+      - name: 构建前端
+        run: |
+          npm --prefix src-ui ci
+          npm --prefix src-ui run build
       # Linux 上 tauri 要链 webkit2gtk 才能编译（测试本身不开窗口）
       - name: 安装 Linux 依赖
         run: |
@@ -69,10 +80,12 @@ jobs:
           cache: npm
 
       - name: 安装依赖
-        run: npm ci
+        run: |
+          npm ci
+          npm --prefix src-ui ci
 
-      # 前端是纯静态文件（src-ui/），不需要构建步骤——
-      # 但图标素材是产物不是源，按图标表重新生成一遍。
+      # 图标素材是产物不是源，按图标表重新生成一遍。
+      # 前端的打包由 tauri build 的 beforeBuildCommand 负责调用。
       - name: 生成图标素材
         run: npm run icons
 

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * 检查前端 api-shim.js 和 Rust 侧命令的契约是否对得上。
+ * 检查前端 IPC 封装和 Rust 侧命令的契约是否对得上。
  *
  * 为什么需要：Tauri 的 invoke 是「字符串命令名 + 字符串参数名」，
  * 拼错了编译器不会管，单测也测不到——要等用户真的点到那个按钮才炸。
@@ -17,7 +17,7 @@ const path = require('path');
 
 const root = path.join(__dirname, '..');
 const rs = fs.readFileSync(path.join(root, 'src-tauri', 'src', 'commands.rs'), 'utf8');
-const js = fs.readFileSync(path.join(root, 'src-ui', 'api-shim.js'), 'utf8');
+const js = fs.readFileSync(path.join(root, 'src-ui', 'src', 'api', 'index.ts'), 'utf8');
 
 // --- Rust 侧：命令名 -> 参数名集合 ---
 const cmds = new Map();
