@@ -3377,7 +3377,7 @@ if (!gotLock) {
     summonWindow();
   });
 
-  if (process.platform === 'win32') app.setAppUserModelId('io.github.openx123.aihub');
+  if (process.platform === 'win32') app.setAppUserModelId('io.github.wrysmile.aihub');
 
   // 必须在任何 session / 配置读写之前做完：数据目录还在用旧名字的话，这里就把它搬过来
   migrateLegacyUserData();

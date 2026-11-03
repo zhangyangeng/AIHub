@@ -4,7 +4,7 @@
  *   cd src-tauri
  *   SCRATCH="$TEMP/aihub-migtest-profile" && rm -rf "$SCRATCH" && mkdir -p "$SCRATCH"
  *   AIHUB_CONFIG_DIR="$SCRATCH" \
- *   TAURI_CONFIG='{"identifier":"io.github.openx123.aihub.migtest"}' \
+ *   TAURI_CONFIG='{"identifier":"io.github.wrysmile.aihub.migtest"}' \
  *   AIHUB_LOGIN_EXPORT_TO="$SCRATCH/export.json" \
  *   AIHUB_SELFTEST=../tools/login-migration-selftest.js cargo run
  *

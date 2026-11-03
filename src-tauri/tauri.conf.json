@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Aihub",
   "version": "0.4.0",
-  "identifier": "io.github.openx123.aihub",
+  "identifier": "io.github.wrysmile.aihub",
   "build": {
     "beforeDevCommand": "npm --prefix src-ui run dev",
     "devUrl": "http://localhost:1420",
@@ -58,9 +58,9 @@
     "updater": {
       "active": true,
       "dialog": false,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGRTI5MEExQzIwMUJCMzAKUldRd3V3SENvWkRpVC9LZy9vb2IvMWgreFJicnJqME94elFtc3FDNWZyc3BrYXpFZHBIK2d4eUsK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUyNEYxOUI1MDE3RTJGQkQKUldTOUwzNEJ0UmxQVXYzNnYwUnFVQ3QydWdxY2R3N3N1aXlKUkV3eDFXeDlrd0hKRWgrcHp5QUQK",
       "endpoints": [
-        "https://github.com/OpenX123/aihub/releases/latest/download/latest.json"
+        "https://github.com/zhangyangeng/AIHub/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "quiet"

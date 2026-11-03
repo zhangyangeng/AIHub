@@ -3,19 +3,20 @@
   "productName": "Aihub",
   "version": "0.4.0",
   "private": true,
-  "description": "把常用的 AI 聊天网站聚合到一个窗口里：多标签 + 拖拽分屏，每个站点独立 session，登录态互不干扰。Windows 桌面客户端（Electron）",
+  "description": "把常用的 AI 聊天网站聚合到一个窗口里：多标签 + 拖拽分屏，每个站点独立数据目录，登录态互不干扰。Windows / macOS 桌面客户端（Tauri）",
   "main": "main.js",
   "author": "Aihub contributors",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OpenX123/aihub.git"
+    "url": "git+https://github.com/zhangyangeng/AIHub.git"
   },
-  "homepage": "https://github.com/OpenX123/aihub#readme",
+  "homepage": "https://github.com/zhangyangeng/AIHub#readme",
   "bugs": {
-    "url": "https://github.com/OpenX123/aihub/issues"
+    "url": "https://github.com/zhangyangeng/AIHub/issues"
   },
   "keywords": [
+    "tauri",
     "electron",
     "ai",
     "chatgpt",
@@ -57,7 +58,7 @@
     "electron-builder": "^26.15.3"
   },
   "build": {
-    "appId": "io.github.openx123.aihub",
+    "appId": "io.github.wrysmile.aihub",
     "productName": "Aihub",
     "copyright": "Copyright © 2026",
     "directories": {
@@ -148,8 +149,8 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "OpenX123",
-        "repo": "aihub"
+        "owner": "zhangyangeng",
+        "repo": "AIHub"
       }
     ]
   },
