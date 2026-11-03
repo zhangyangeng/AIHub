@@ -50,7 +50,7 @@
 
 **影响**：这段文字正常情况下被站点 webview 盖住看不到，但**在站点加载失败前 / 首次启动的瞬间**会露出来。原版有引导性文案，Vue 版是空白。属于轻微体验退化，非致命。
 
-**修复**：`App.vue` 的 `stageMsg` else 分支已补上原生的快捷键提示文案，`prettyAccel` 与 `IS_MAC` 从 `utils/env.ts` 导入，与原版 `renderTools()` 逐字一致（mac 显示 `⌘`/`⌃Tab`，其它平台显示 `Ctrl+`）。构建（vue-tsc + vite）已通过。
+**修复**：`App.vue` 的 `stageMsg` else 分支补上了提示文案，`prettyAccel` 与 `IS_MAC` 从 `utils/env.ts` 导入。但原版那一串键里只有全局唤出、`F5` 是真的实现了的，所以文案最终改成 `全局唤出：Alt+Space · 点标签切换 · F5 刷新当前标签`，机器上有自定义快捷键时会显示实际的组合键。构建（vue-tsc + vite）已通过。
 
 ---
 
@@ -106,7 +106,7 @@ Rust `include_str!("../../src-ui/challenge-guard.js")` 硬依赖，文件保留�
 |---|---|---|---|
 | 1 | 双击分隔条均分疑似无效（`equalize:true` 被 Rust 忽略） | 见 3.1 | 真机验证后决定是否修复 |
 | 2 | `api-shim.js` 的 `endDrag` 定义漏传参数（调用方传了但定义里丢了） | 原生 api-shim.js | Vue 版已补，无需处理 |
-| 3 | Ctrl+Tab 切换标签、Ctrl+1~9 直达：只在提示文字里提到，前端从未实现 | 原生 renderTools 的文案 | 确认是否在 Rust 端（global-shortcut）实现；若没有，属于「文案承诺了但没做」 |
+| 3 | Ctrl+Tab 切换标签、Ctrl+1~9 直达、Ctrl+, 设置、Ctrl+± 缩放：只在提示文字里提到，从未实现 | 原生 renderTools 的文案 | 已核实 Rust 端也没有注册，属于原生遗留的功能缺口（提示文案先于实现存在）。stage 提示已改为只列真实存在的键，实现见 docs/roadmap.md 第 15 条 |
 
 ---
 
@@ -130,7 +130,7 @@ Rust `include_str!("../../src-ui/challenge-guard.js")` 硬依赖，文件保留�
 
 1. **【已完成】补 2.2**：stage 的快捷键提示文案已补上（见 2.2）。
 2. **【验证】3.1**：真机双击分隔条，确认均分是否生效，决定是否修原生遗留 bug。
-3. **【可选】五.3**：确认 Ctrl+Tab / Ctrl+1~9 是否在 Rust 端实现，若没有可考虑补（但这属于「新增功能」，超出本次「全功能迁移」范围）。
+3. **【待定】五.3**：Ctrl+Tab / Ctrl+1~9 / Ctrl+, / 缩放已核实两端都未实现，属原生遗留缺口，记入 `docs/roadmap.md` 第 15 条。
 4. **【参考】2.1**：已确认 `maybeNotifyUpdate` 是原生死代码，无需处理；若未来要做「后台自动下载 + 就绪提示」，需先在 Rust 端实现。
 
 ---

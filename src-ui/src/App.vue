@@ -32,12 +32,9 @@ const stageMsg = computed(() => {
   if (st.loading) {
     return '正在打开「' + svc.name + '」…';
   }
-  // 站点加载完成后的全局快捷键提示
+  // 站点加载完成后的全局快捷键提示（只列真正实现了的键，别承诺不存在的）
   const acc = prettyAccel((appStore.hotkey && appStore.hotkey.accelerator) || 'Alt+Space');
-  const mod = IS_MAC ? '⌘' : 'Ctrl+';
-  return '全局唤出：' + acc
-    + ' · ' + (IS_MAC ? '⌃Tab' : 'Ctrl+Tab') + ' 切换标签'
-    + ' · ' + mod + '1~9 直达 · F5 刷新 · ' + mod + ', 设置';
+  return '全局唤出：' + acc + ' · 点标签切换 · F5 刷新当前标签';
 });
 
 // 标签栏收起时，站点视图顶边从 44 变 0，外壳要同步撤掉顶栏
