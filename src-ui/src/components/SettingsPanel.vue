@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 设置面板，对应原 index.html 的 setOverlay / renderServiceList / 偏好设置 / 更新逻辑。
+// 设置面板：服务列表、偏好设置（主题 / 休眠 / 置顶 / 标签栏）、快捷键、账号迁移、版本与更新。
 import { computed, ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useOverlayStore } from '@/stores/overlay';

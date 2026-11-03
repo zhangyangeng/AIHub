@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 添加 AI 面板：只列还没加到标签栏上的站点，对应原 index.html 的 openAddPanel / closeAddPanel。
+// 添加面板：只列还没加进标签栏的站点，选中即加入。
 import { computed, ref, watch, nextTick } from 'vue';
 import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';

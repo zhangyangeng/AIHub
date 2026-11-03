@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// 标签栏：对应原 index.html 的 tabNodeFor / syncTab / renderTabs。
-// 用声明式模板 + 响应式状态替代命令式 DOM 操作。
+// 标签栏：渲染顶栏服务，以及选中 / 分屏 / 加载 / 休眠状态，处理点击、拖拽与收起。
 import { computed } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { builtinIcon } from '@/utils/icons';

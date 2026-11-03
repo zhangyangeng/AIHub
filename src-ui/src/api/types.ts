@@ -1,6 +1,5 @@
-// window.api 的完整类型契约。
-// 对应 src-tauri/src/commands.rs 的 #[tauri::command]，以及 api-shim.js 暴露的方法。
-// 这是前端和 Rust 后端的「接口边界」，重构时方法名和参数形状必须保持稳定。
+// 前端与 Rust 后端的接口边界：与 src-tauri/src/commands.rs 的 #[tauri::command] 一一对应。
+// 方法名或参数形状改动时，两边必须同时改。
 
 /** 一个 AI 服务的配置 */
 export interface Service {
@@ -129,8 +128,7 @@ export interface MenuPoint {
 }
 
 /**
- * window.api 的完整形状。
- * 由 api-shim.js 在运行时注入到 window 上（依赖 withGlobalTauri: true）。
+ * 前端可用的全部后端接口。
  */
 export interface AihubApi {
   // ---- 状态 ----

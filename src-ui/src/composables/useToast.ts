@@ -1,5 +1,4 @@
-// Toast 提示 composable：对应原 index.html 的 toast() / toastAction()。
-// 全局单例，供任何组件调用。
+// 全局单例 Toast，任何组件都可以直接调用。
 
 import { ref } from 'vue';
 

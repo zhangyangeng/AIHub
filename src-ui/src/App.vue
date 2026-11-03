@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// 根组件：外壳布局骨架。
-// 对应原 index.html 的 <body> 结构：bar（tabs + host + tools）、投放区、分隔条、stage、toast、设置面板、添加面板。
+// 根组件：外壳窗口的整体骨架。
+// 自上而下是 bar（标签栏 + 主机名 + 工具栏）、拖拽投放区、分隔条、stage、toast、设置面板、添加面板。
 import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { useLayoutStore } from '@/stores/layout';
@@ -32,7 +32,7 @@ const stageMsg = computed(() => {
   if (st.loading) {
     return '正在打开「' + svc.name + '」…';
   }
-  // 站点加载完成后的全局快捷键提示（与原版保持一致）
+  // 站点加载完成后的全局快捷键提示
   const acc = prettyAccel((appStore.hotkey && appStore.hotkey.accelerator) || 'Alt+Space');
   const mod = IS_MAC ? '⌘' : 'Ctrl+';
   return '全局唤出：' + acc

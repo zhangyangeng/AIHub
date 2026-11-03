@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 设置面板里的单行服务，对应原 index.html 的 serviceRow()。
+// 设置面板里的单行服务：改名、改地址、打开、开发者工具、收起、删除。
 import { computed, ref, watch } from 'vue';
 import type { Service } from '@/api/types';
 import { useOverlayStore } from '@/stores/overlay';

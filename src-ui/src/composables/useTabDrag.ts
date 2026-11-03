@@ -1,4 +1,4 @@
-// 标签拖拽 + 分屏投放 composable：对应原 index.html 的 startTabDrag ~ applyDrop。
+// 标签拖拽 + 分屏投放。
 //
 // 雷区 2：用鼠标事件自己跟踪，不用 HTML5 拖放。
 // Tauri 的 wry 在 macOS 上吞掉了 HTML5 拖放事件（dragenter/dragover/drop 不会转发给
@@ -43,11 +43,10 @@ const dragGhostPos = ref({ x: 0, y: 0 });
 const dropTargets = ref<DropTarget[]>([]);
 const hotIndex = ref<number | null>(null);
 
-// ⚠️ Pinia store 不能在这里直接取。
-// main.ts 为了让全局手势在挂载前就装好，会在 createPinia() 之前 import 本模块；
-// 而模块顶层调用 useXxxStore() 是在 import 阶段求值的，那时 Pinia 还没装，
-// 会当场抛「getActivePinia() was called but there was no active Pinia」，
-// 导致 main.ts 整个模块图失败、应用挂不上去（表现为外壳一片空白，标签栏也没有）。
+// ⚠️ 这里不能在模块顶层取 Pinia store。
+// main.ts 在 createPinia() 之前就 import 本模块（为了在挂载前装好全局手势），
+// 顶层调用 useXxxStore() 是在 import 阶段求值的，那时 Pinia 还没装，
+// 会抛「getActivePinia() was called but there was no active Pinia」。
 // 所以统一改成用到时再解析。
 const appStore = () => useAppStore();
 const overlayStore = () => useOverlayStore();

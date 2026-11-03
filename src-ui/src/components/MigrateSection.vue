@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 账号迁移区块，对应原 index.html 的登录迁移逻辑（exportLogin / importLogin）。
+// 账号迁移区块：把登录状态导出成加密文件，或从文件导入（支持先预演）。
 import { computed, ref } from 'vue';
 import type { LoginImportResult } from '@/api/types';
 import { api } from '@/api';

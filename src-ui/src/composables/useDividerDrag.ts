@@ -1,4 +1,4 @@
-// 分隔条拖拽 composable：对应原 index.html 的 onDividerDown / onDividerMove / onDividerUp。
+// 分隔条拖拽：按下拖动、松手提交，双击均分。
 //
 // 雷区 1：节流用时间戳 + setTimeout，刻意不用 requestAnimationFrame。
 // 窗口被其它窗口遮挡时 Chromium 会暂停出帧，rAF 不再触发，拖拽就会卡死。
@@ -102,8 +102,7 @@ export function useDividerDrag() {
   return { onDividerDown, onDividerDoubleClick, dividerStyle };
 }
 
-// 页面任何地方的新按下都意味着上一次拖拽手势已经结束。
-// 在 main.ts 里挂一次（对应原代码 document.addEventListener('pointerdown', ...)）。
+// 页面任何地方的新按下都意味着上一次拖拽手势已经结束。在 main.ts 里挂一次。
 export function installDividerCleanup() {
   document.addEventListener(
     'pointerdown',

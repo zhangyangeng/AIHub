@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 全局快捷键（老板键）区块，对应原 index.html 的 renderHotkey / 快捷键录制逻辑。
+// 全局快捷键（老板键）区块：显示当前组合、录制新组合、启停开关。
 import { computed, ref } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useToast } from '@/composables/useToast';

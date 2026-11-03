@@ -6,8 +6,8 @@ import './styles/base.css';
 import { installTabDragGlobals } from '@/composables/useTabDrag';
 import { installDividerCleanup } from '@/composables/useDividerDrag';
 
-// 拖拽 / 分隔条这些全局手势依赖 document 级事件监听，
-// 在应用挂载前一次性装好（对应原 index.html 里散落的 document.addEventListener）。
+// 拖拽 / 分隔条的回调挂在 document 上，必须在挂载前装好，
+// 否则第一帧的拖拽手势收不到事件。
 installTabDragGlobals();
 installDividerCleanup();
 

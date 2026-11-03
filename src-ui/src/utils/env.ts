@@ -1,4 +1,4 @@
-// 平台与通用工具，对应原 index.html 里散落的几个纯函数。
+// 平台判断与几个纯工具函数。
 
 import { ref } from 'vue';
 
@@ -21,12 +21,11 @@ export function escapeHtml(text: unknown): string {
 }
 
 /**
- * 当前是不是深色主题（由窗口自己的主题决定，改主题时会把它推给窗口）。
+ * 当前是不是深色主题。主题由窗口设置，切换后媒体查询会跟着变。
  *
- * 必须做成响应式的：内置 logo 的深/浅变体靠它取舍，而图标组件是 computed。
- * 原先直接读 `matchMedia(...).matches` 是个不产生依赖的纯函数——主题切了，
- * 媒体查询值确实变了，但没有任何 computed 知道要重算，logo 就卡在旧主题。
- * 所以这里用一个 ref 接住媒体查询的 change 事件，读它即建立依赖。
+ * 状态存在 ref 里、而不是每次现读 matchMedia(...).matches：
+ * 内置 logo 的深/浅变体靠它取舍，读取方是 computed，
+ * 纯函数不产生响应式依赖，主题变了图标不会重算。
  */
 const darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
 
@@ -60,7 +59,7 @@ export function prettyAccel(acc: string | undefined | null): string {
   return parts.map((m) => MAC_SYMBOLS[m] || m + '+').join('') + key;
 }
 
-/** 键盘事件 -> Electron accelerator 主键名（认不出返回空） */
+/** 键盘事件 -> 快捷键 accelerator 的主键名（认不出返回空） */
 export function keyNameFromEvent(event: KeyboardEvent): string {
   const code = event.code || '';
   if (/^Key[A-Z]$/.test(code)) return code.slice(3);

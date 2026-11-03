@@ -1,4 +1,4 @@
-// 内置站点图标解析，对应原 index.html 的 ICON_TABLE / builtinIconKey / iconPathFor / builtinIcon。
+// 内置站点图标解析：按站点 id / URL 找到对应 logo，并按深浅主题取变体。
 // 图标表由 public/icons.js 在运行时注入 window.AIHUB_ICONS。
 
 import { prefersDark, hostOf } from '@/utils/env';

@@ -1,4 +1,4 @@
-// 主状态 store：对应原 index.html 的 `state` 全局变量 + `status` Map + `applyState()`。
+// 主状态 store：服务列表、当前激活项、布局偏好，以及每个标签的运行时状态。
 // 由 Rust 端通过 state:changed / tab:status 事件推送更新。
 
 import { defineStore } from 'pinia';
@@ -33,7 +33,7 @@ export const useAppStore = defineStore('app', {
   },
 
   actions: {
-    /** 应用一份新的全局状态（对应原 applyState） */
+    /** 应用一份新的全局状态 */
     apply(next: AppState | null | undefined) {
       if (!next) return;
       Object.assign(this, next);
@@ -62,8 +62,8 @@ export const useAppStore = defineStore('app', {
 });
 
 /**
- * 标签运行时状态 store：对应原 `status` Map。
- * 用 reactive Map 保持「就地更新」的语义——状态消息（标题/favicon/加载中）来得很频繁，
+ * 标签运行时状态 store：每个服务的标题、favicon、加载中、错误、休眠。
+ * 用 reactive Map 保持「就地更新」的语义——状态消息来得很频繁，
  * 整表重建会触发多余的重渲染。
  */
 export const useStatusStore = defineStore('status', () => {

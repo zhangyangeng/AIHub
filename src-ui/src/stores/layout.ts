@@ -1,4 +1,4 @@
-// 分屏几何状态 store：对应原 index.html 的 `geometry` 全局变量 + renderLayout()。
+// 分屏几何状态 store：窗口尺寸、标签栏高度、各栏矩形。
 // 由 Rust 端通过 layout:changed 事件推送，初始化时主动 getLayout() 拉一次。
 
 import { defineStore } from 'pinia';
@@ -27,7 +27,7 @@ export const useLayoutStore = defineStore('layout', {
   },
 
   actions: {
-    /** 应用一份新的布局几何（对应原 renderLayout） */
+    /** 应用一份新的布局几何 */
     apply(next: LayoutGeometry | null | undefined) {
       if (!next) return;
       Object.assign(this, next);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 工具栏 + 主机名 + 中央提示文字，对应原 index.html 的 renderTools / renderAll。
+// 工具栏：当前站点主机名 + 一排操作按钮 + 中央提示文字。
 import { computed, ref } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { useOverlayStore } from '@/stores/overlay';
@@ -19,7 +19,7 @@ const host = computed(() => {
   return st.url ? hostOf(st.url) : '';
 });
 
-/** 分屏按钮的常态：多栏时点亮 + 角标写栏数（与原版 renderTools 一致） */
+/** 分屏按钮：多栏时点亮，角标写栏数 */
 const isMulti = computed(() => (appStore.panes || []).length > 1);
 
 const splitTitle = computed(() =>

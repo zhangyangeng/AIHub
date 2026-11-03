@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// 分隔条组件：对应原 index.html 的 renderLayout 里创建 divider 的部分。
-// 数据由 layout store 驱动，拖拽逻辑在 useDividerDrag 里。
+// 分隔条组件：按 layout store 的几何信息渲染，拖拽逻辑在 useDividerDrag 里。
 import { useLayoutStore } from '@/stores/layout';
 import { useDividerDrag } from '@/composables/useDividerDrag';
 
