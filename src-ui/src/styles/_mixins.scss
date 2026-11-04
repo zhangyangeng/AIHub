@@ -1,0 +1,21 @@
+// 过渡的「时长 + 缓动」组合。
+//
+// 这里用变量而不是 mixin：写成 @mixin transit($props, $dur) 时，传多个属性会撞上
+// SCSS 的参数绑定——transit(color, background-color) 会被当成
+// $props=color、$dur=background-color，是一个不会报错的静默错误。
+// 直接拼在 transition 后面既支持多属性，产物也和手写一字不差。
+//
+// 值仍然是 CSS 自定义属性，运行时不变；SCSS 只负责少打字，不参与换肤。
+$t-fast: var(--dur-1) var(--ease-out);
+$t-base: var(--dur-2) var(--ease-out);
+$t-slow: var(--dur-3) var(--ease-out);
+$t-exit: var(--dur-exit) var(--ease-out);
+$t-thumb: var(--dur-2) var(--ease-drawer);
+$t-drawer: var(--dur-3) var(--ease-drawer);
+
+// 焦点环：原来七处各写一遍 outline，抽出来之后新加控件不会漏掉焦点态。
+// offset 交给调用方——内嵌元素用负值（画在自身内部），独立控件用正值。
+@mixin focus-ring($offset: 1px) {
+  outline: 2px solid var(--accent);
+  outline-offset: $offset;
+}

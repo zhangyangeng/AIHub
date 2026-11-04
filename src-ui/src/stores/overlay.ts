@@ -15,6 +15,8 @@ export const useOverlayStore = defineStore('overlay', {
     settingsOpen: false,
     /** 添加 AI 面板开着 */
     addPanelOpen: false,
+    /** 「添加自定义网站」对话框开着（挂在设置面板的站点页上） */
+    customAddOpen: false,
     /** 拖拽中，站点视图临时让开 */
     dragYielding: false,
     /** 当前是否已让位（缓存，避免重复发 IPC） */
@@ -33,6 +35,8 @@ export const useOverlayStore = defineStore('overlay', {
     /** 打开/关闭设置面板 */
     setSettings(open: boolean) {
       this.settingsOpen = open;
+      // 面板关掉时对话框也跟着收，否则下次打开会顶着一个上次没填完的表单
+      if (!open) this.customAddOpen = false;
       this.syncViewYield();
     },
 
@@ -40,6 +44,18 @@ export const useOverlayStore = defineStore('overlay', {
     setAddPanel(open: boolean) {
       this.addPanelOpen = open;
       this.syncViewYield();
+    },
+
+    /** 从添加面板切到「自定义网站」：关弹窗、开设置、弹出表单 */
+    requestCustomAdd() {
+      this.addPanelOpen = false;
+      this.settingsOpen = true;
+      this.customAddOpen = true;
+      this.syncViewYield();
+    },
+
+    setCustomAdd(open: boolean) {
+      this.customAddOpen = open;
     },
 
     /** 拖拽开始/结束 */

@@ -74,12 +74,8 @@ async function add(svc: AvailableService, btn: HTMLButtonElement) {
 }
 
 function goCustom() {
-  // 自定义网站走设置面板那套表单
-  close();
-  overlayStore.setSettings(true);
-  setTimeout(() => {
-    document.getElementById('add-name')?.focus();
-  }, 220);
+  // 自定义网站交给设置面板的站点页：关掉这个弹窗、开设置、弹出表单
+  overlayStore.requestCustomAdd();
 }
 
 function onBackdrop(event: MouseEvent) {
@@ -138,7 +134,7 @@ function onItemMounted(el: unknown, svc: AvailableService) {
           </button>
         </div>
         <p class="ap-empty" id="ap-empty" :hidden="items.length > 0">
-          所有内置站点都已经在标签栏上了。<br />想加别家？到设置里填名字和网址。
+          所有内置站点都已经在标签栏上了。<br />想加别家？点下面的「添加自定义网站」。
         </p>
       </div>
       <footer>

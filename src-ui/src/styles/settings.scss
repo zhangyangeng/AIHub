@@ -1,0 +1,693 @@
+/* 设置面板：左栏分区导航 + 右栏单页内容。
+   配色全部走 variables.scss 的令牌，深浅主题由媒体查询自动切换，这里不写任何具体色值。 */
+
+@use './mixins' as *;
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity $t-base;
+}
+#overlay.open { opacity: 1; }
+#overlay.closing {
+  opacity: 0;
+  transition: opacity $t-exit;
+}
+
+.st-panel {
+  width: 100%;
+  max-width: 880px;
+  height: 100%;
+  max-height: 620px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px var(--shadow-strong);
+  overflow: hidden;
+  transform: translateY(14px) scale(.985);
+  opacity: 0;
+  will-change: transform, opacity;
+  transition:
+    transform $t-drawer,
+    opacity $t-base;
+}
+#overlay.open .st-panel { transform: none; opacity: 1; }
+#overlay.closing .st-panel {
+  transform: translateY(8px) scale(.99);
+  opacity: 0;
+  transition-duration: var(--dur-exit);
+  transition-timing-function: var(--ease-out);
+}
+
+/* ---------- 顶部条 ---------- */
+.st-bar {
+  flex: 0 0 auto;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px 0 18px;
+  border-bottom: 1px solid var(--line);
+}
+.st-bar .st-bar-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-right: auto;
+}
+
+.st-body {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+/* ---------- 左侧导航 ---------- */
+.st-nav {
+  flex: 0 0 178px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 10px 8px;
+  background: var(--bg);
+  border-right: 1px solid var(--line);
+}
+.st-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color $t-fast, color $t-fast;
+}
+.st-nav-item svg {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  opacity: .85;
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-nav-item:hover { background: var(--hover); color: var(--fg); }
+}
+.st-nav-item[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+.st-nav-item:focus-visible {
+  @include focus-ring(-2px);
+}
+.st-nav-foot {
+  margin-top: auto;
+  padding: 6px 10px;
+  color: var(--fg-dim);
+  font-size: 11px;
+  opacity: .8;
+}
+
+/* ---------- 右侧内容 ---------- */
+.st-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 18px 24px 24px;
+}
+.st-main::-webkit-scrollbar { width: 10px; }
+.st-main::-webkit-scrollbar-thumb {
+  background: var(--divider);
+  border-radius: 5px;
+  border: 3px solid var(--panel-bg);
+}
+
+.st-page { animation: stPageIn $t-base both; }
+@keyframes stPageIn {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: none; }
+}
+
+.st-page-bar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.st-page-bar h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.st-page-bar .st-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+
+/* ---------- 分组与设置行 ---------- */
+.st-group { margin-bottom: 22px; }
+.st-group-title {
+  margin: 0 0 2px 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+
+.st-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.st-group > .st-row:first-of-type { border-top: 1px solid var(--line); }
+.st-row-main { min-width: 0; }
+.st-row-title {
+  font-size: 13px;
+  font-weight: 600;
+}
+.st-row-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-dim);
+}
+.st-row-desc.mono {
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11.5px;
+}
+.st-row-ctl {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ---------- 开关 ---------- */
+.sw {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 11px;
+  background: var(--switch-off);
+  cursor: pointer;
+  transition: background-color $t-base;
+}
+.sw i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .28);
+  transition: transform $t-thumb;
+}
+.sw[aria-checked="true"] { background: var(--accent); }
+.sw[aria-checked="true"] i { transform: translateX(16px); }
+.sw:disabled { opacity: .45; cursor: default; }
+.sw:focus-visible {
+  @include focus-ring(2px);
+}
+
+/* ---------- 分段控件 ---------- */
+.seg {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  padding: 2px;
+  background: var(--chip-bg);
+  border-radius: 8px;
+}
+.seg-thumb {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 2px;
+  border-radius: 6px;
+  background: var(--accent);
+  pointer-events: none;
+  transition: transform $t-drawer;
+}
+.seg-btn {
+  position: relative;
+  z-index: 1;
+  padding: 5px 14px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color $t-base;
+}
+@media (hover: hover) and (pointer: fine) {
+  .seg-btn:hover { color: var(--fg); }
+}
+.seg-btn[aria-checked="true"] { color: var(--on-accent); }
+.seg-btn:focus-visible {
+  @include focus-ring(-2px);
+}
+
+/* ---------- 站点列表 ---------- */
+.st-list { border-top: 1px solid var(--line); }
+.st-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 -8px;
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 7px;
+  transition: background-color $t-fast;
+}
+@media (hover: hover) and (pointer: fine) {
+  .st-item:hover { background: var(--hover); border-bottom-color: transparent; }
+}
+.st-item.is-hidden { opacity: .55; }
+.st-item.is-hidden:hover { opacity: 1; }
+
+.st-logo {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--chip-bg);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+.st-logo img {
+  position: absolute;
+  inset: 3px;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.st-logo .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--dot, var(--accent));
+}
+
+.st-item-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.st-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-item-host {
+  font-size: 11.5px;
+  color: var(--fg-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.st-badge {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: 20px;
+  background: var(--chip-bg);
+  color: var(--fg-dim);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.st-badge.accent {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.st-more {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg-dim);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: .45;
+  transition: opacity $t-fast, background-color $t-fast;
+}
+.st-more svg { width: 15px; height: 15px; }
+@media (hover: hover) and (pointer: fine) {
+  .st-item:hover .st-more { opacity: 1; }
+  .st-more:hover { background: var(--chip-bg); color: var(--fg); }
+}
+.st-more[aria-expanded="true"] {
+  opacity: 1;
+  background: var(--chip-bg);
+  color: var(--fg);
+}
+.st-more:focus-visible { @include focus-ring(1px); }
+
+.st-menu {
+  /* 坐标由 ServiceRow 量完按钮位置写进内联样式，这里只是兜底。
+     必须 fixed：菜单挂在 body 上，不跟 .st-main 的滚动容器一起被裁。 */
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  width: 178px;
+  padding: 4px;
+  background: var(--panel-bg);
+  border: 1px solid var(--divider);
+  border-radius: 9px;
+  box-shadow: 0 12px 28px var(--shadow-strong);
+}
+.st-menu button {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.st-menu button:hover { background: var(--hover); }
+.st-menu hr {
+  margin: 4px 6px;
+  border: none;
+  border-top: 1px solid var(--line);
+}
+.st-menu button.danger { color: var(--danger-fg); }
+.st-menu button.danger:hover { background: var(--danger-bg); }
+
+.st-empty {
+  padding: 28px 12px;
+  text-align: center;
+  color: var(--fg-dim);
+  font-size: 12px;
+  line-height: 1.8;
+}
+
+.st-addbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border: 1px dashed var(--divider);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color $t-fast, color $t-fast;
+}
+.st-addbox:hover { border-color: var(--accent); color: var(--accent); }
+.st-addbox:focus-visible { @include focus-ring(1px); }
+
+/* ---------- 快捷键录制 ---------- */
+.st-rec {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 190px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  background: var(--chip-bg);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color $t-base;
+}
+.st-rec:hover { border-color: var(--accent); }
+.st-rec.recording {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.st-rec:focus-visible { @include focus-ring(2px); }
+.st-rec kbd {
+  padding: 2px 8px;
+  border: 1px solid var(--divider);
+  border-radius: 5px;
+  background: var(--panel-bg);
+  box-shadow: 0 1px 0 var(--divider);
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+}
+.st-rec .st-rec-hint { font-size: 12px; color: var(--fg-dim); }
+
+.st-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.st-presets-label {
+  margin-right: 2px;
+  font-size: 11.5px;
+  color: var(--fg-dim);
+}
+.st-presets button {
+  padding: 3px 10px;
+  border: 1px solid var(--divider);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--fg-dim);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: border-color $t-fast, color $t-fast;
+}
+.st-presets button:hover { border-color: var(--fg-dim); color: var(--fg); }
+.st-presets button.on { border-color: var(--accent); color: var(--accent); }
+
+.st-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--fg-dim);
+  line-height: 1.5;
+}
+.st-status::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--fg-dim);
+}
+.st-status.ok { color: var(--ok-fg); }
+.st-status.ok::before { background: var(--ok); }
+.st-status.warn { color: var(--warn-fg); }
+.st-status.warn::before { background: var(--warn-fg); }
+
+/* ---------- 卡片（账号迁移） ---------- */
+.st-card {
+  margin-bottom: 8px;
+  padding: 13px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.st-card h3 {
+  margin: 0 0 3px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.st-card p {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--fg-dim);
+}
+.st-card .st-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.st-card input[type="password"] {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--input-border);
+  border-radius: 7px;
+  background: var(--input-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  user-select: text;
+}
+.st-card input[type="password"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.st-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 2px;
+  border-top: 1px solid var(--line);
+  background: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  color: var(--fg);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.st-link:last-child { border-bottom: 1px solid var(--line); }
+.st-link:focus-visible {
+  @include focus-ring(-2px);
+  border-radius: 6px;
+}
+.st-link:hover { color: var(--accent); }
+.st-link .st-link-note { color: var(--fg-dim); font-size: 11.5px; }
+
+/* ---------- 对话框（编辑 / 删除确认） ---------- */
+/* fixed 而不是 absolute：对话框要盖住整个窗口（含左栏导航），
+   跟着 .st-main 滚动会让它在长列表里位置飘。 */
+.st-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--scrim);
+  animation: stFade $t-base both;
+}
+@keyframes stFade { from { opacity: 0; } to { opacity: 1; } }
+.st-dialog {
+  width: min(420px, calc(100% - 48px));
+  padding: 18px;
+  background: var(--panel-bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: 0 20px 48px var(--shadow-strong);
+}
+.st-dialog h3 {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.st-dialog .st-dialog-desc {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--fg-dim);
+}
+.st-field { margin-bottom: 10px; }
+.st-field label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.st-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* 实心危险按钮：只用在「确认删除」这一个位置。
+   base.css 里的 .btn.danger 是淡底描边款，适合列表里的入口，不适合最终确认。 */
+button.btn.danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+button.btn.danger-solid:hover { filter: brightness(1.08); }
+
+/* 对话框里的勾选项（改选项而不是并排两个危险按钮） */
+.st-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--fg-dim);
+  font-size: 12px;
+  line-height: 1.5;
+  cursor: pointer;
+}
+.st-check input {
+  margin-top: 1px;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+
+/* 减少动态效果：保留淡入淡出，去掉位移与缩放 */
+@media (prefers-reduced-motion: reduce) {
+  .st-panel,
+  #overlay.closing .st-panel { transform: none !important; }
+  #overlay,
+  #overlay.closing { transition: opacity var(--dur-2) ease !important; }
+  .st-page,
+  .st-modal { animation: none !important; }
+  .sw i,
+  .seg-thumb { transition: none !important; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  #overlay,
+  .st-modal { background: #000; }
+}

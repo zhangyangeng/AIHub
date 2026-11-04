@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Aihub · 设置面板设计稿</title>
+<style>
+  /* ============ 设计令牌（与 src-ui/src/styles/variables.css 对齐） ============ */
+  html[data-theme="light"] {
+    --page: #eceef3;
+    --panel: #ffffff;
+    --nav: #f7f8fa;
+    --line: #e6e9ef;
+    --line-strong: #d3d8e0;
+    --fg: #1f2329;
+    --fg-dim: #6b7280;
+    --fg-mute: #9aa1ae;
+    --hover: #f4f6f9;
+    --accent: #3b5bdb;
+    --accent-soft: #e9eefc;
+    --accent-soft-fg: #3853c9;
+    --chip: #f1f3f7;
+    --danger: #b3261e;
+    --danger-soft: #fdeff1;
+    --ok: #0f7a45;
+    --ok-soft: #eaf6ef;
+    --warn: #8a5a00;
+    --shadow: 0 24px 60px rgba(24, 28, 36, .16), 0 2px 8px rgba(24, 28, 36, .06);
+    --track: #d8dde6;
+  }
+  html[data-theme="dark"] {
+    --page: #0b0d11;
+    --panel: #171a22;
+    --nav: #12151c;
+    --line: #252a36;
+    --line-strong: #333a49;
+    --fg: #e6e9ef;
+    --fg-dim: #98a0b0;
+    --fg-mute: #6f7789;
+    --hover: #1f242e;
+    --accent: #5c78ff;
+    --accent-soft: #1e2739;
+    --accent-soft-fg: #9db0ff;
+    --chip: #232938;
+    --danger: #ff8a95;
+    --danger-soft: #2a1c21;
+    --ok: #5fd39a;
+    --ok-soft: #16281f;
+    --warn: #ffd08a;
+    --shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 2px 8px rgba(0, 0, 0, .3);
+    --track: #39404f;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 40px 24px 56px;
+    background: var(--page);
+    color: var(--fg);
+    font-family: "Segoe UI", "Microsoft YaHei", -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.55;
+    transition: background-color .2s ease, color .2s ease;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; }
+
+  /* ============ 页面说明区 ============ */
+  .doc-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+  .doc-head h1 { margin: 0 0 6px; font-size: 17px; font-weight: 600; letter-spacing: .2px; }
+  .doc-head p { margin: 0; font-size: 12px; color: var(--fg-dim); max-width: 620px; line-height: 1.7; }
+  .theme-toggle { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); flex: none; }
+  .theme-toggle button {
+    padding: 5px 12px; border: 0; border-radius: 6px; background: transparent;
+    color: var(--fg-dim); font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .theme-toggle button.on { background: var(--accent); color: #fff; }
+
+  /* ============ 窗口外壳 ============ */
+  .app {
+    display: flex; flex-direction: column;
+    height: 620px;
+    background: var(--panel);
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .app-bar {
+    height: 44px; flex: none;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 8px 0 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .app-bar .t { font-size: 13px; font-weight: 600; }
+  .x-btn {
+    width: 30px; height: 30px; display: grid; place-items: center;
+    border: 0; border-radius: 7px; background: transparent; color: var(--fg-mute);
+    cursor: pointer; font-size: 15px; line-height: 1;
+  }
+  .x-btn:hover { background: var(--hover); color: var(--fg); }
+
+  .app-body { display: flex; flex: 1; min-height: 0; }
+
+  /* ============ 左侧导航 ============ */
+  .nav {
+    width: 178px; flex: none;
+    padding: 10px 10px 8px;
+    background: var(--nav);
+    border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; gap: 1px;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 10px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--fg-dim);
+    font: inherit; font-size: 13px; text-align: left; cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+  }
+  .nav-item:hover { background: var(--hover); color: var(--fg); }
+  .nav-item.on { background: var(--accent-soft); color: var(--accent-soft-fg); font-weight: 600; }
+  .nav-item svg { width: 15px; height: 15px; flex: none; opacity: .85; }
+  .nav-foot { margin-top: auto; padding: 6px 10px; font-size: 11px; color: var(--fg-mute); }
+
+  /* ============ 右侧内容 ============ */
+  .pane { flex: 1; min-width: 0; overflow-y: auto; padding: 20px 26px 26px; }
+  .pane::-webkit-scrollbar { width: 10px; }
+  .pane::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 5px; border: 3px solid var(--panel); }
+
+  .page { display: none; }
+  .page.on { display: block; animation: fade .16s ease both; }
+  @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+
+  .page-bar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .page-bar h2 { margin: 0 0 3px; font-size: 15px; font-weight: 600; }
+  .page-bar .sub { margin: 0; font-size: 12px; color: var(--fg-mute); }
+
+  /* ============ 按钮 ============ */
+  .btn {
+    height: 30px; padding: 0 12px; flex: none;
+    border: 1px solid var(--line-strong); border-radius: 7px;
+    background: var(--panel); color: var(--fg);
+    font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+    transition: background-color .12s ease, border-color .12s ease;
+  }
+  .btn:hover { background: var(--hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.ghost { border-color: transparent; background: transparent; color: var(--fg-dim); }
+  .btn.ghost:hover { background: var(--hover); color: var(--fg); }
+  .btn.danger { color: var(--danger); border-color: transparent; background: transparent; }
+  .btn.danger:hover { background: var(--danger-soft); }
+
+  /* ============ 站点列表 ============ */
+  .list { border-top: 1px solid var(--line); }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 8px 9px 6px; margin: 0 -6px;
+    border-bottom: 1px solid var(--line);
+    border-radius: 7px;
+    position: relative;
+  }
+  .row:hover { background: var(--hover); border-bottom-color: transparent; }
+  .row.off { opacity: .55; }
+  .row.off:hover { opacity: 1; }
+
+  .logo {
+    position: relative; width: 24px; height: 24px; flex: none;
+    display: grid; place-items: center;
+    border-radius: 6px; background: color-mix(in srgb, var(--c, #888) 12%, transparent);
+    color: var(--c, #888); font-size: 11px; font-weight: 600;
+  }
+  .logo img { position: absolute; inset: 3px; width: 18px; height: 18px; object-fit: contain; }
+
+  .row-main { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .row-main b { font-size: 13px; font-weight: 600; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-main i { font-style: normal; font-size: 11.5px; color: var(--fg-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .badge {
+    flex: none; padding: 1px 8px; border-radius: 20px;
+    background: var(--chip); color: var(--fg-dim); font-size: 11px; white-space: nowrap;
+  }
+  .badge.on { background: var(--accent-soft); color: var(--accent-soft-fg); }
+
+  .more {
+    width: 26px; height: 26px; flex: none; display: grid; place-items: center;
+    border: 0; border-radius: 6px; background: transparent; color: var(--fg-mute);
+    font-size: 15px; line-height: 1; cursor: pointer; opacity: .45;
+    transition: opacity .12s ease, background-color .12s ease;
+  }
+  .row:hover .more, .more.open { opacity: 1; background: var(--chip); color: var(--fg); }
+
+  .menu {
+    position: absolute; right: 0; top: calc(100% - 4px); z-index: 20;
+    width: 176px; padding: 4px; display: none;
+    background: var(--panel); border: 1px solid var(--line-strong); border-radius: 9px;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .18);
+  }
+  .menu.on { display: block; }
+  .menu button {
+    display: block; width: 100%; text-align: left;
+    padding: 6px 10px; border: 0; border-radius: 6px; background: transparent;
+    color: var(--fg); font: inherit; font-size: 12px; cursor: pointer;
+  }
+  .menu button:hover { background: var(--hover); }
+  .menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 6px; }
+  .menu button.danger { color: var(--danger); }
+  .menu button.danger:hover { background: var(--danger-soft); }
+
+  .add-box {
+    width: 100%; margin-top: 14px; padding: 11px 14px;
+    display: flex; align-items: center; gap: 8px;
+    border: 1px dashed var(--line-strong); border-radius: 9px;
+    background: transparent; color: var(--fg-dim);
+    font: inherit; font-size: 12px; text-align: left; cursor: pointer;
+  }
+  .add-box:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* ============ 设置行 ============ */
+  .group { margin-bottom: 22px; }
+  .group-title { font-size: 12px; font-weight: 600; color: var(--fg-mute); margin: 0 0 6px 2px; }
+  .set-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    padding: 11px 4px; border-top: 1px solid var(--line);
+  }
+  .set-row:last-child { border-bottom: 1px solid var(--line); }
+  .set-main { min-width: 0; }
+  .set-title { font-size: 13px; font-weight: 600; color: var(--fg); }
+  .set-desc { font-size: 12px; color: var(--fg-dim); margin-top: 2px; line-height: 1.5; }
+  .set-desc.mono { font-family: Consolas, "Courier New", monospace; font-size: 11.5px; }
+
+  /* 开关 */
+  .switch {
+    flex: none; width: 38px; height: 22px; padding: 0;
+    border: 0; border-radius: 11px; background: var(--track);
+    cursor: pointer; position: relative;
+    transition: background-color .16s ease;
+  }
+  .switch i {
+    position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .25);
+    transition: transform .18s cubic-bezier(.32, .72, 0, 1);
+  }
+  .switch[aria-checked="true"] { background: var(--accent); }
+  .switch[aria-checked="true"] i { transform: translateX(16px); }
+
+  /* 分段控件 */
+  .seg {
+    flex: none; position: relative; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr;
+    padding: 2px; background: var(--chip); border-radius: 8px;
+  }
+  .seg .thumb {
+    position: absolute; top: 2px; bottom: 2px; left: 2px;
+    border-radius: 6px; background: var(--accent);
+    transition: transform .22s cubic-bezier(.32, .72, 0, 1);
+  }
+  .seg button {
+    position: relative; z-index: 1; padding: 5px 14px;
+    border: 0; border-radius: 6px; background: transparent;
+    color: var(--fg-dim); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .seg button.on { color: #fff; }
+
+  /* 快捷键录制 */
+  .rec {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    min-width: 190px; height: 38px; padding: 0 14px;
+    border: 1px solid var(--line-strong); border-radius: 8px;
+    background: var(--chip); cursor: pointer;
+  }
+  .rec:hover { border-color: var(--accent); }
+  kbd {
+    padding: 2px 8px; border-radius: 5px;
+    background: var(--panel); border: 1px solid var(--line-strong);
+    box-shadow: 0 1px 0 var(--line-strong);
+    font-family: Consolas, "Courier New", monospace; font-size: 12px; color: var(--fg);
+  }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .presets button {
+    padding: 3px 10px; border: 1px solid var(--line-strong); border-radius: 20px;
+    background: transparent; color: var(--fg-dim); font: inherit; font-size: 11.5px; cursor: pointer;
+  }
+  .presets button:hover { border-color: var(--fg-mute); color: var(--fg); }
+  .presets button.on { border-color: var(--accent); color: var(--accent); }
+
+  .status { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 12px; }
+  .status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--fg-mute); flex: none; }
+  .status.ok { color: var(--ok); }
+  .status.ok::before { background: var(--ok); }
+  .status.warn { color: var(--warn); }
+  .status.warn::before { background: var(--warn); }
+
+  /* 卡片式内容（迁移） */
+  .card {
+    border: 1px solid var(--line); border-radius: 10px;
+    padding: 13px 14px; margin-bottom: 8px; background: var(--panel);
+  }
+  .card h3 { margin: 0 0 3px; font-size: 13px; font-weight: 600; }
+  .card p { margin: 0 0 10px; font-size: 12px; color: var(--fg-dim); line-height: 1.55; }
+  .card .inline { display: flex; gap: 8px; align-items: center; }
+  .card input {
+    flex: 1; min-width: 0; height: 30px; padding: 0 10px;
+    border: 1px solid var(--line-strong); border-radius: 7px;
+    background: var(--panel); color: var(--fg); font: inherit; font-size: 12px;
+  }
+  .card input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
+
+  .link-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 4px; border-top: 1px solid var(--line);
+    font-size: 13px; cursor: pointer;
+  }
+  .link-row:last-child { border-bottom: 1px solid var(--line); }
+  .link-row:hover { color: var(--accent); }
+  .link-row span:last-child { color: var(--fg-mute); font-size: 11.5px; }
+
+  .doc-foot { margin-top: 16px; font-size: 12px; color: var(--fg-dim); line-height: 1.8; }
+  .doc-foot b { color: var(--fg); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="doc-head">
+    <div>
+      <h1>设置面板 · 设计稿</h1>
+      <p>六分区导航 + 行式设置项。点左侧导航切换页面，点行尾 ⋯ 看操作菜单，右上角可以切深浅色。文案已按「用户看得懂」重写过一遍。</p>
+    </div>
+    <div class="theme-toggle">
+      <button class="on" data-theme-btn="light">浅色</button>
+      <button data-theme-btn="dark">深色</button>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="app-bar">
+      <span class="t">设置</span>
+      <button class="x-btn" title="关闭">&#215;</button>
+    </div>
+
+    <div class="app-body">
+
+      <aside class="nav">
+        <button class="nav-item on" data-go="sites">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/></svg>
+          站点
+        </button>
+        <button class="nav-item" data-go="general">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>
+          通用
+        </button>
+        <button class="nav-item" data-go="hotkey">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+          快捷键
+        </button>
+        <button class="nav-item" data-go="perf">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 18V9M10 18V5M16 18v-6M22 18H2"/></svg>
+          性能
+        </button>
+        <button class="nav-item" data-go="data">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg>
+          数据
+        </button>
+        <button class="nav-item" data-go="about">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.6v.01"/></svg>
+          关于
+        </button>
+        <div class="nav-foot">Aihub v0.5.1</div>
+      </aside>
+
+      <main class="pane">
+
+        <section class="page on" data-page="sites">
+          <div class="page-bar">
+            <div>
+              <h2>站点</h2>
+              <p class="sub">标签栏里显示的服务，拖动可调整顺序</p>
+            </div>
+            <button class="btn primary">添加服务</button>
+          </div>
+
+          <div class="list">
+            <div class="row">
+              <span class="logo" style="--c:#10a37f">G<img data-icon="chatgpt" alt=""></span>
+              <span class="row-main"><b>ChatGPT</b><i>chatgpt.com</i></span>
+              <span class="badge on">分屏中</span>
+              <button class="more" aria-label="更多操作">&#8943;</button>
+              <div class="menu">
+                <button>编辑名称与网址</button>
+                <button>从顶栏收起</button>
+                <button>打开开发者工具</button>
+                <hr>
+                <button class="danger">删除服务…</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="logo" style="--c:#c8663a">C<img data-icon="claude" alt=""></span>
+              <span class="row-main"><b>Claude</b><i>claude.ai</i></span>
+              <span class="badge">内置</span>
+              <button class="more" aria-label="更多操作">&#8943;</button>
+              <div class="menu">
+                <button>编辑名称与网址</button>
+                <button>从顶栏收起</button>
+                <button>打开开发者工具</button>
+                <hr>
+                <button class="danger">删除服务…</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="logo" style="--c:#2f6ab5">G<img data-icon="gemini" alt=""></span>
+              <span class="row-main"><b>Gemini</b><i>gemini.google.com</i></span>
+              <button class="more" aria-label="更多操作">&#8943;</button>
+              <div class="menu">
+                <button>编辑名称与网址</button>
+                <button>从顶栏收起</button>
+                <button>打开开发者工具</button>
+                <hr>
+                <button class="danger">删除服务…</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="logo" style="--c:#3b5bdb">D<img data-icon="deepseek" alt=""></span>
+              <span class="row-main"><b>DeepSeek</b><i>chat.deepseek.com</i></span>
+              <button class="more" aria-label="更多操作">&#8943;</button>
+              <div class="menu">
+                <button>编辑名称与网址</button>
+                <button>从顶栏收起</button>
+                <button>打开开发者工具</button>
+                <hr>
+                <button class="danger">删除服务…</button>
+              </div>
+            </div>
+
+            <div class="row">
+              <span class="logo" style="--c:#7a5cd6">豆<img data-icon="doubao" alt=""></span>
+              <span class="row-main"><b>豆包</b><i>doubao.com</i></span>
+              <button class="more" aria-label="更多操作">&#8943;</button>
+              <div class="menu">
+                <button>编辑名称与网址</button>
+                <button>从顶栏收起</button>
+                <button>打开开发者工具</button>
+                <hr>
+                <button class="danger">删除服务…</button>
+              </div>
+            </div>
+
+            <div class="row off">
+              <span class="logo" style="--c:#6b7280">K<img data-icon="kimi" alt=""></span>
+              <span class="row-main"><b>Kimi</b><i>kimi.moonshot.cn</i></span>
+              <span class="badge">已收起</span>
+              <button class="more" aria-label="更多操作">&#8943;</button>
+              <div class="menu">
+                <button>编辑名称与网址</button>
+                <button>放回顶栏</button>
+                <button>打开开发者工具</button>
+                <hr>
+                <button class="danger">删除服务…</button>
+              </div>
+            </div>
+          </div>
+
+          <button class="add-box">&#65291; 从内置站点添加，或填写任意网址</button>
+        </section>
+
+        <section class="page" data-page="general">
+          <div class="page-bar">
+            <div>
+              <h2>通用</h2>
+              <p class="sub">外观和窗口行为</p>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">外观</div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">主题</div>
+                <div class="set-desc">不影响站点页面自身的配色。</div>
+              </div>
+              <div class="seg" data-count="3">
+                <span class="thumb"></span>
+                <button>浅色</button>
+                <button>深色</button>
+                <button class="on">跟随系统</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">标签栏</div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">显示标签栏</div>
+                <div class="set-desc">收起后站点页面铺满窗口，恢复入口在托盘菜单里。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="true"><i></i></button>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">窗口</div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">窗口常驻置顶</div>
+                <div class="set-desc">始终显示在其它程序之上。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">显示托盘图标</div>
+                <div class="set-desc">关掉后窗口收进后台就没有入口了。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="true"><i></i></button>
+            </div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">关闭窗口时收进后台</div>
+                <div class="set-desc">关闭按钮不退出应用，方便随时用快捷键唤回。退出请用托盘菜单。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="true"><i></i></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" data-page="hotkey">
+          <div class="page-bar">
+            <div>
+              <h2>快捷键</h2>
+              <p class="sub">在任何程序里唤出窗口</p>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">启用全局快捷键</div>
+                <div class="set-desc">按下唤出窗口，再按一次收起。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="true"><i></i></button>
+            </div>
+
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">唤出按键</div>
+                <div class="set-desc">点一下再按下组合键即可更换。</div>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <div class="rec"><kbd>Alt</kbd><kbd>Space</kbd></div>
+                <button class="btn ghost">恢复默认</button>
+              </div>
+            </div>
+
+            <div class="set-row" style="align-items:flex-start;">
+              <div class="set-main">
+                <div class="set-title">常用预设</div>
+                <div class="presets">
+                  <button class="on">Alt + Space</button>
+                  <button>Ctrl + Shift + A</button>
+                  <button>Ctrl + Alt + Space</button>
+                  <button>F12</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">唤出时强制置顶</div>
+                <div class="set-desc">唤出后压在其它窗口之上，切走就自动取消。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="true"><i></i></button>
+            </div>
+          </div>
+
+          <div class="status ok">已生效：在任何程序里按 Alt + Space 都能唤出窗口</div>
+        </section>
+
+        <section class="page" data-page="perf">
+          <div class="page-bar">
+            <div>
+              <h2>性能</h2>
+              <p class="sub">内存和启动速度的取舍</p>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">内存</div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">后台标签自动休眠</div>
+                <div class="set-desc">闲置的后台标签会释放内存，点回去从原处继续。正在显示、播放声音或有未发送内容的标签不会被休眠。</div>
+              </div>
+              <div class="seg" data-count="4">
+                <span class="thumb"></span>
+                <button>15 分钟</button>
+                <button class="on">30 分钟</button>
+                <button>2 小时</button>
+                <button>不休眠</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">启动</div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">启动时加载全部标签</div>
+                <div class="set-desc">标签栏能更快显示各站点自己的标题，代价是启动更慢、内存占用更高。</div>
+              </div>
+              <button class="switch" role="switch" aria-checked="false"><i></i></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" data-page="data">
+          <div class="page-bar">
+            <div>
+              <h2>数据</h2>
+              <p class="sub">登录状态和数据目录</p>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">账号迁移</div>
+            <div class="card">
+              <h3>导出登录状态</h3>
+              <p>换设备后导入这个文件就能继续用，不用重新登录。</p>
+              <div class="inline">
+                <input type="password" placeholder="设置密码（可选，用于加密文件）">
+                <button class="btn">导出…</button>
+              </div>
+            </div>
+            <div class="card">
+              <h3>导入登录状态</h3>
+              <p>选择之前导出的文件。同名服务会被覆盖，导入前会先列出内容让你确认。</p>
+              <div class="inline">
+                <button class="btn">选择文件…</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">本地数据</div>
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">数据目录</div>
+                <div class="set-desc mono">%APPDATA%\Aihub</div>
+              </div>
+              <button class="btn">复制路径</button>
+            </div>
+            <div class="set-row" style="border-top:0;">
+              <div class="set-main">
+                <div class="set-desc">登录态只保存在本机，不会上传。卸载应用不会删除这里的数据。</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="page" data-page="about">
+          <div class="page-bar">
+            <div>
+              <h2>关于</h2>
+              <p class="sub">版本与开源信息</p>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="set-row">
+              <div class="set-main">
+                <div class="set-title">Aihub</div>
+                <div class="set-desc">当前版本 0.5.1</div>
+              </div>
+              <button class="btn">检查更新</button>
+            </div>
+            <div class="set-row" style="border-top:0;">
+              <div class="set-desc">已是最新版本。</div>
+            </div>
+          </div>
+
+          <div class="group">
+            <div class="group-title">链接</div>
+            <div class="link-row"><span>GitHub 仓库</span><span>zhangyangeng/AIHub</span></div>
+            <div class="link-row"><span>更新日志</span><span></span></div>
+            <div class="link-row"><span>开源协议</span><span>MIT</span></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <p class="doc-foot">
+    三处主要改动：<b>左栏分区</b>替代单列长列表；<b>行尾菜单</b>收纳每行四个按钮；<b>一行说明</b>替代多行实现解释。
+  </p>
+</div>
+
+<script>
+  var ICONS = {
+    chatgpt: { light: 'light/chatgpt.svg', dark: 'chatgpt.svg' },
+    claude: { light: 'claude.svg', dark: 'claude.svg' },
+    gemini: { light: 'gemini.svg', dark: 'gemini.svg' },
+    deepseek: { light: 'deepseek.svg', dark: 'deepseek.svg' },
+    doubao: { light: 'doubao.svg', dark: 'doubao.svg' },
+    kimi: { light: 'kimi.svg', dark: 'dark/kimi.svg' }
+  };
+  var BASE = '../../src-ui/public/icons/';
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+      b.classList.toggle('on', b.dataset.themeBtn === theme);
+    });
+    document.querySelectorAll('img[data-icon]').forEach(function (img) {
+      var m = ICONS[img.dataset.icon];
+      if (m) img.src = BASE + m[theme];
+    });
+  }
+
+  document.querySelectorAll('[data-theme-btn]').forEach(function (b) {
+    b.addEventListener('click', function () { applyTheme(b.dataset.themeBtn); });
+  });
+
+  document.querySelectorAll('[data-go]').forEach(function (b) {
+    b.addEventListener('click', function () { go(b.dataset.go); });
+  });
+
+  function go(name) {
+    document.querySelectorAll('.nav-item').forEach(function (n) {
+      n.classList.toggle('on', n.dataset.go === name);
+    });
+    document.querySelectorAll('.page').forEach(function (p) {
+      p.classList.toggle('on', p.dataset.page === name);
+    });
+    document.querySelector('.pane').scrollTop = 0;
+  }
+
+  document.querySelectorAll('.switch').forEach(function (s) {
+    s.addEventListener('click', function () {
+      s.setAttribute('aria-checked', s.getAttribute('aria-checked') === 'true' ? 'false' : 'true');
+    });
+  });
+
+  document.querySelectorAll('.seg').forEach(function (seg) {
+    var thumb = seg.querySelector('.thumb');
+    var btns = seg.querySelectorAll('button');
+    var n = btns.length;
+    function move(i) {
+      thumb.style.width = 'calc((100% - 4px) / ' + n + ')';
+      thumb.style.transform = 'translateX(' + (i * 100) + '%)';
+    }
+    var current = 0;
+    btns.forEach(function (b, i) {
+      if (b.classList.contains('on')) current = i;
+      b.addEventListener('click', function () {
+        btns.forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        move(i);
+      });
+    });
+    move(current);
+  });
+
+  document.querySelectorAll('.more').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var row = btn.closest('.row');
+      var menu = row.querySelector('.menu');
+      var wasOpen = menu.classList.contains('on');
+      document.querySelectorAll('.menu').forEach(function (m) { m.classList.remove('on'); });
+      document.querySelectorAll('.more').forEach(function (m) { m.classList.remove('open'); });
+      if (!wasOpen) { menu.classList.add('on'); btn.classList.add('open'); }
+    });
+  });
+
+  document.addEventListener('click', function () {
+    document.querySelectorAll('.menu').forEach(function (m) { m.classList.remove('on'); });
+    document.querySelectorAll('.more').forEach(function (m) { m.classList.remove('open'); });
+  });
+
+  var params = new URLSearchParams(location.search);
+  applyTheme(params.get('theme') === 'dark' ? 'dark' : 'light');
+  if (params.get('page')) go(params.get('page'));
+</script>
+</body>
+</html>
