@@ -111,7 +111,7 @@ Rust 侧把它交给**窗口级**的 `window.set_theme()`，于是窗口标题�
 以及外壳页面里的 `prefers-color-scheme` 全都跟着变——外壳样式表只要用媒体查询写配色即可，
 不需要额外维护「当前主题」的类名，也就没有「设置里切了但页面没跟上」这种同步问题。
 
-配色变量定义在 `src-ui/src/styles/variables.css`：深色是默认值，
+配色变量定义在 `src-ui/src/styles/variables.scss`：深色是默认值，
 浅色在 `@media (prefers-color-scheme: light)` 里覆盖一遍。
 
 服务页面本身的深浅色**不受这个开关控制**：那是各家网站自己的事情。
@@ -123,7 +123,7 @@ Rust 侧把它交给**窗口级**的 `window.set_theme()`，于是窗口标题�
 
 ## 6. 动效规范
 
-所有动效集中在一组令牌里，写在 `src-ui/src/styles/variables.css`，不允许在别处现编数值。
+所有动效集中在一组令牌里，写在 `src-ui/src/styles/variables.scss`，不允许在别处现编数值。
 
 | 令牌 | 值 | 用途 |
 | --- | --- | --- |
@@ -147,6 +147,22 @@ Rust 侧把它交给**窗口级**的 `window.set_theme()`，于是窗口标题�
 6. **尊重系统设置**：`prefers-reduced-motion: reduce` 下保留淡入淡出、去掉位移与缩放；
    `prefers-reduced-transparency: reduce` 下遮罩改不透明。
 7. 悬浮类动效统一包在 `@media (hover: hover) and (pointer: fine)` 里。
+
+### 样式文件与 SCSS 约定
+
+样式用 SCSS 写，但**令牌必须留在 CSS 自定义属性里，不能迁到 SCSS 变量**——
+主题靠 `prefers-color-scheme` 在运行时切换，而 SCSS 变量编译期就被替换掉了，
+迁过去之后深色模式会静默失效，且很难查。
+
+SCSS 只承担两件事：
+
+| 位置 | 内容 | 用法 |
+| --- | --- | --- |
+| `_mixins.scss` 的 `$t-*` | `$t-fast` / `$t-base` / `$t-slow` / `$t-exit` / `$t-thumb` / `$t-drawer` | 把「时长 + 缓动」收成一个词，直接拼在 `transition:` 后面，多属性也成立 |
+| `_mixins.scss` 的 `focus-ring()` | 焦点环 | `@include focus-ring(-2px)`，offset 内嵌元素用负值、独立控件用正值 |
+
+嵌套最多三层。再深就是在堆选择器特异性，以后改样式只能靠 `!important` 打架，
+而这套样式原本靠扁平命名维持低特异性，这一点不要丢。
 
 ## 7. 登录态导出 / 导入
 

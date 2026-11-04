@@ -96,8 +96,10 @@ src-ui/                        # 保持目录名不变，减少 Rust 端改动
 │   │   ├── HotkeySection.vue  # 快捷键录制
 │   │   └── MigrateSection.vue # 登录迁移
 │   └── styles/
-│       ├── variables.css      # 现有的 CSS 变量（原样搬）
-│       └── base.css
+│       ├── variables.scss     # 主题令牌（CSS 自定义属性）
+│       ├── _mixins.scss       # 过渡组合与焦点环
+│       ├── base.scss          # 标签栏 / 工具栏 / 分屏
+│       └── settings.scss      # 设置面板
 ├── api-shim.js               # 保留原样（或转 TS 进 api/）
 └── icons.js                  # 保留原样（内置图标表）
 ```

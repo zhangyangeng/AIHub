@@ -1,3 +1,5 @@
+@use './mixins' as *;
+
 * { box-sizing: border-box; }
 /* 标签栏里的加载圈 / 栏号角标是常驻节点，只靠 hidden 切换（不反复建节点 = 不闪不重排） */
 [hidden] { display: none !important; }
@@ -53,8 +55,8 @@ body.dragging-tab #dropzones { display: block; }
      只动 opacity / transform，不动 width/height（那会触发布局）。 */
   opacity: 0;
   transform: scale(.97);
-  transition: opacity var(--dur-2) var(--ease-out),
-              transform var(--dur-2) var(--ease-out),
+  transition: opacity $t-base,
+              transform $t-base,
               background-color var(--dur-1) linear;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   border: 2px dashed color-mix(in srgb, var(--accent) 45%, transparent);
@@ -94,7 +96,7 @@ body.dragging-tab .dz.empty.hot {
   border-radius: 999px;
   white-space: nowrap;
   opacity: 0;
-  transition: opacity var(--dur-1) var(--ease-out);
+  transition: opacity $t-fast;
 }
 .dz.hot::after { opacity: 1; }
 
@@ -132,7 +134,7 @@ body.dragging-tab .dz.empty.hot {
   background: rgba(0, 0, 0, .5);
   backdrop-filter: blur(3px);
   opacity: 0;
-  transition: opacity var(--dur-2) var(--ease-out);
+  transition: opacity $t-base;
 }
 #addpanel.open .ap-backdrop { opacity: 1; }
 
@@ -149,8 +151,8 @@ body.dragging-tab .dz.empty.hot {
   /* 从触发点的方向（顶栏加号）微微落下来，不是凭空出现 */
   opacity: 0;
   transform: translateY(-8px) scale(.98);
-  transition: opacity var(--dur-3) var(--ease-out),
-              transform var(--dur-3) var(--ease-out);
+  transition: opacity $t-slow,
+              transform $t-slow;
 }
 #addpanel.open .ap-card { opacity: 1; transform: none; }
 #addpanel.closing .ap-backdrop,
@@ -201,9 +203,9 @@ body.dragging-tab .dz.empty.hot {
   cursor: pointer;
   text-align: left;
   font-size: 13px;
-  transition: border-color var(--dur-1) var(--ease-out),
-              transform var(--dur-1) var(--ease-out),
-              background-color var(--dur-1) var(--ease-out);
+  transition: border-color $t-fast,
+              transform $t-fast,
+              background-color $t-fast;
 }
 .ap-item:hover { border-color: var(--accent); background: var(--panel-bg); }
 .ap-item:active { transform: scale(.97); }
@@ -243,9 +245,9 @@ body.dragging-tab .dz.empty.hot {
   font: inherit;
   cursor: pointer;
   /* 标签栏点得频繁，所以只做「近乎察觉不到」的颜色过渡 + 按压反馈，不做位移 */
-  transition: color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out);
+  transition: color $t-base, background-color $t-base;
 }
-.tab:active { transform: scale(.97); transition: transform var(--dur-1) var(--ease-out); }
+.tab:active { transform: scale(.97); transition: transform $t-fast; }
 /* 悬浮：只给一点点底色，表示可点 */
 @media (hover: hover) and (pointer: fine) {
   .tab:hover { background: var(--hover); color: var(--fg); }
@@ -277,7 +279,7 @@ body.dragging-tab .dz.empty.hot {
   cursor: pointer;
   opacity: 0;
   pointer-events: none;
-  transition: opacity var(--dur-2) var(--ease-out), background-color var(--dur-1) var(--ease-out);
+  transition: opacity $t-base, background-color $t-fast;
 }
 .tab .close svg { width: 9px; height: 9px; }
 @media (hover: hover) and (pointer: fine) {
@@ -383,9 +385,9 @@ body.dragging-tab .dz.empty.hot {
   background: transparent;
   color: var(--fg-dim);
   cursor: pointer;
-  transition: background-color var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out);
+  transition: background-color $t-base, color $t-base;
 }
-.icon-btn:active { transform: scale(.94); transition: transform var(--dur-1) var(--ease-out); }
+.icon-btn:active { transform: scale(.94); transition: transform $t-fast; }
 @media (hover: hover) and (pointer: fine) {
   .icon-btn:hover { background: var(--hover); color: var(--fg); }
 }
@@ -436,7 +438,7 @@ body.dragging-tab .dz.empty.hot {
   border-radius: 1px;
   background: var(--divider);
   /* 变粗用 scaleX（合成层），不做 width 动画 */
-  transition: background-color var(--dur-2) var(--ease-out), transform var(--dur-1) var(--ease-out);
+  transition: background-color $t-base, transform $t-fast;
 }
 @media (hover: hover) and (pointer: fine) {
   .divider:hover::after { background: var(--divider-hover); transform: scaleX(1.5); }
@@ -470,82 +472,8 @@ body.resizing, body.resizing * { cursor: col-resize !important; }
   color: var(--code-fg);
 }
 
-/* ---------- 设置面板 ---------- */
-#overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  z-index: 20;
-  /* 进场：遮罩淡入 + 面板从下方轻微弹入（苹果那种「从触发处长出来」的感觉） */
-  opacity: 0;
-  transition: opacity var(--dur-2) var(--ease-out);
-}
-#overlay[hidden] { display: none; }
-#overlay.open { opacity: 1; }
-#overlay.closing {
-  opacity: 0;
-  transition: opacity var(--dur-exit) var(--ease-out);
-}
-.panel {
-  width: 100%;
-  max-width: 780px;
-  max-height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: var(--panel-bg);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: 0 24px 60px var(--shadow-strong);
-  overflow: hidden;
-  transform: translateY(14px) scale(.985);
-  opacity: 0;
-  will-change: transform, opacity;
-  transition:
-    transform var(--dur-3) var(--ease-drawer),
-    opacity var(--dur-2) var(--ease-out);
-}
-#overlay.open .panel { transform: none; opacity: 1; }
-#overlay.closing .panel {
-  transform: translateY(8px) scale(.99);
-  opacity: 0;
-  transition-duration: var(--dur-exit);
-  transition-timing-function: var(--ease-out);
-}
-.panel header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--line);
-}
-.panel header h2 { margin: 0; font-size: 15px; font-weight: 600; margin-right: auto; }
-.panel .body { padding: 16px 20px 20px; overflow: auto; }
-.panel footer {
-  padding: 12px 20px;
-  border-top: 1px solid var(--line);
-  color: var(--fg-dim);
-  font-size: 12px;
-  line-height: 1.7;
-}
-
-.add-form {
-  display: grid;
-  grid-template-columns: 1fr 1.6fr auto;
-  gap: 8px;
-  align-items: center;
-  padding: 12px;
-  background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  margin-bottom: 16px;
-}
-label.field { display: block; }
-.hint { color: var(--fg-dim); font-size: 12px; margin: 0 0 10px; }
+/* 设置面板的全部样式在 styles/settings.css：
+   它是唯一一个「左栏导航 + 多页内容」的界面，和外壳其余部分没有共用规则。 */
 
 input[type="text"], input[type="url"] {
   width: 100%;
@@ -557,7 +485,7 @@ input[type="text"], input[type="url"] {
   color: var(--fg);
   font: inherit;
   user-select: text;
-  transition: border-color var(--dur-2) var(--ease-out), box-shadow var(--dur-2) var(--ease-out);
+  transition: border-color $t-base, box-shadow $t-base;
 }
 input[type="text"]:focus, input[type="url"]:focus {
   outline: none;
@@ -575,10 +503,10 @@ button.btn {
   cursor: pointer;
   white-space: nowrap;
   transition:
-    background-color var(--dur-2) var(--ease-out),
-    border-color var(--dur-2) var(--ease-out),
-    color var(--dur-2) var(--ease-out),
-    transform var(--dur-1) var(--ease-out);
+    background-color $t-base,
+    border-color $t-base,
+    color $t-base,
+    transform $t-fast;
 }
 button.btn:hover { background: var(--chip-hover); }
 /* 按下去给一点回弹，手感更「实」 */
@@ -589,177 +517,6 @@ button.btn.danger { color: var(--danger-fg); border-color: var(--danger-border);
 button.btn.danger:hover { background: var(--danger-hover); }
 button.btn.ghost { background: transparent; }
 button.btn:disabled { opacity: .45; cursor: default; transform: none; }
-
-.svc-list { display: flex; flex-direction: column; gap: 8px; }
-/* 从顶栏收起来的服务：整行压暗，一眼能和还在顶栏上的分开 */
-.svc-row.hidden-svc { opacity: .62; }
-.svc-row.hidden-svc:hover { opacity: 1; }
-.pill.off { color: var(--fg-dim); }
-
-/* ---- 账号迁移 ---- */
-.migrate {
-  margin-top: 18px;
-  padding: 12px;
-  background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-.migrate-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 10px; }
-.migrate-head strong { font-size: 13px; }
-.migrate-head span { color: var(--fg-dim); font-size: 12px; }
-.migrate-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; }
-.migrate-row input[type="password"] {
-  width: 100%;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-  background: var(--input-bg);
-  color: var(--fg);
-  font: inherit;
-}
-.migrate-row input[type="password"]:focus { outline: none; border-color: var(--accent); }
-.migrate-note { margin-top: 10px; color: var(--fg-dim); font-size: 12px; line-height: 1.7; }
-.migrate-note.warn { color: var(--warn-fg); }
-.migrate-note.ok { color: var(--ok-fg); }
-#migrate-confirm { margin-top: 10px; }
-.svc-row {
-  display: grid;
-  /* logo + 名称 + 网址 + 操作。没有颜色列：颜色在这里没有意义，
-     只在「这个服务没有内置 logo」时才用到自动分配的颜色画个小圆点。 */
-  grid-template-columns: 26px minmax(90px, 0.9fr) minmax(160px, 1.4fr) auto;
-  gap: 8px;
-  align-items: center;
-  padding: 10px;
-  background: var(--card-bg);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  transition: border-color var(--dur-2) var(--ease-out), background-color var(--dur-2) var(--ease-out);
-}
-.svc-row:hover { border-color: var(--divider-hover); }
-/* 面板打开时列表逐条淡入（错开 26ms，苹果那种「依次落位」的感觉） */
-.svc-list.enter > .svc-row {
-  animation: rowIn var(--dur-3) var(--ease-out) both;
-  animation-delay: calc(var(--i, 0) * 26ms);
-}
-@keyframes rowIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: none; }
-}
-.svc-badge {
-  display: flex; align-items: center; justify-content: center;
-  width: 24px; height: 24px;
-  border-radius: 6px;
-}
-.svc-badge img { width: 18px; height: 18px; object-fit: contain; }
-.svc-badge .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dot, var(--accent)); }
-.pref { margin-top: 12px; padding: 10px 12px; background: var(--card-bg); border: 1px solid var(--line); border-radius: 10px; }
-.pref-row { display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
-.pref-row.block { flex-direction: column; gap: 8px; cursor: default; }
-.pref-row input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--accent); flex: 0 0 auto; }
-.pref-row span { display: flex; flex-direction: column; gap: 3px; }
-.pref-row strong { font-size: 13px; font-weight: 600; }
-.pref-row em { font-style: normal; color: var(--fg-dim); font-size: 12px; line-height: 1.5; }
-/* 主题切换：三个等宽小段控，选中块用一个滑块滑过去（只做 transform，不动 width） */
-.seg {
-  position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(72px, 1fr));
-  padding: 2px;
-  background: var(--input-bg);
-  border: 1px solid var(--input-border);
-  border-radius: 8px;
-}
-.seg-thumb {
-  position: absolute;
-  top: 2px;
-  bottom: 2px;
-  left: 2px;
-  width: calc((100% - 4px) / 3);
-  border-radius: 6px;
-  background: var(--accent);
-  pointer-events: none;
-  transform: translateX(0);
-  transition: transform var(--dur-3) var(--ease-drawer);
-}
-/* 四档的分段控件（后台休眠时长）：只改格子数和滑块宽度，其余沿用上面三档那套 */
-.seg[data-count="4"] { grid-template-columns: repeat(4, minmax(62px, 1fr)); }
-.seg[data-count="4"] .seg-thumb { width: calc((100% - 4px) / 4); }
-.seg-thumb.instant { transition: none; }
-.seg-btn {
-  position: relative;
-  z-index: 1;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--fg-dim);
-  font: inherit;
-  text-align: center;
-  cursor: pointer;
-  transition: color var(--dur-2) var(--ease-out);
-}
-@media (hover: hover) and (pointer: fine) {
-  .seg-btn:hover { color: var(--fg); }
-}
-.seg-btn[aria-checked="true"] { color: var(--on-accent); }
-
-/* ---- 全局快捷键（老板键） ----
-   录制框故意用等宽字体 + 居中：一眼能看出这是「按键」而不是普通输入框。
-   .pref-row input 会给里面所有 input 套上 16px 的复选框尺寸，所以这里要盖回来。 */
-.hk-row { display: flex; gap: 8px; align-items: center; }
-.hk-toggle { display: flex; gap: 6px; align-items: center; cursor: pointer; white-space: nowrap; }
-.hk-row input.hk-key {
-  width: 100%;
-  height: 32px;
-  margin-top: 0;
-  flex: 1 1 auto;
-  min-width: 0;
-  text-align: center;
-  font-family: Consolas, "Courier New", monospace;
-  letter-spacing: .5px;
-  cursor: pointer;
-}
-.hk-row input.hk-key.recording { color: var(--accent); border-color: var(--accent); }
-.hk-presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.hk-presets button {
-  font: inherit; font-size: 12px; cursor: pointer;
-  padding: 4px 10px; border-radius: 999px;
-  border: 1px solid var(--divider); background: transparent; color: var(--fg-dim);
-}
-.hk-presets button:hover { border-color: var(--divider-hover); color: var(--fg); }
-.hk-presets button.on { border-color: var(--accent); color: var(--accent); }
-.hk-hint { font-size: 12px; line-height: 1.6; color: var(--fg-dim); }
-.hk-hint.ok { color: var(--ok-fg); }
-.hk-hint.warn { color: var(--warn-fg); }
-.hk-sub {
-  display: flex;
-  gap: 8px;
-  align-items: flex-start;
-  cursor: pointer;
-  color: var(--fg-dim);
-  font-size: 12px;
-  line-height: 1.5;
-}
-.hk-sub input {
-  margin-top: 1px;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--accent);
-  flex: 0 0 auto;
-}
-.svc-row .actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
-.svc-row.confirming { border-color: var(--danger-border); background: var(--danger-bg); }
-.svc-row .confirm-text { grid-column: 1 / -1; color: var(--danger-fg); font-size: 12px; }
-.pill {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  padding: 2px 8px;
-  border-radius: 20px;
-  background: var(--chip-bg);
-  color: var(--fg-dim);
-  font-size: 11px;
-}
 
 /* ---------- 分屏菜单 ----------
    菜单本身是 Windows 原生菜单（主进程 Menu.popup），浮在所有服务页面之上，
@@ -783,8 +540,8 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
   will-change: transform, opacity;
   /* 隐藏态上的 transition 就是「退出」用的：更短、同一个方向滑回去（进出同路） */
   transition:
-    opacity var(--dur-exit) var(--ease-out),
-    transform var(--dur-exit) var(--ease-out);
+    opacity $t-exit,
+    transform $t-exit;
   z-index: 30;
 }
 /* 显示态上的 transition 是「进入」用的：慢一点的、带一点落位感 */
@@ -792,8 +549,8 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
   opacity: 1;
   transform: translateX(-50%) translateY(0) scale(1);
   transition:
-    opacity var(--dur-2) var(--ease-out),
-    transform var(--dur-3) var(--ease-drawer);
+    opacity $t-base,
+    transform $t-drawer;
 }
 #toast.err { border-color: var(--danger-border); color: var(--danger-fg); }
 /* 带按钮的那种（比如「新版本已下载 / 立即重启」）：不会自动消失，要用户处理掉 */
@@ -813,7 +570,7 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
   font: inherit;
   font-size: 12px;
   cursor: pointer;
-  transition: background-color var(--dur-2) var(--ease-out);
+  transition: background-color $t-base;
 }
 #toast-action:hover { background: var(--accent-hover); }
 /* 常驻那条要能点，普通 toast 仍然不吃鼠标事件（免得挡住底下的东西） */
@@ -831,9 +588,7 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
     transition-duration: 1ms !important;
     scroll-behavior: auto !important;
   }
-  .panel, #toast, .tab, button.btn, .svc-list.enter > .svc-row { animation: none !important; }
-  .panel { transform: none !important; transition: opacity var(--dur-2) ease !important; }
-  #overlay, #overlay.closing { transition: opacity var(--dur-2) ease !important; }
+  .panel, #toast, .tab, button.btn { animation: none !important; }
   #toast, #toast.show { transform: translateX(-50%) !important; transition: opacity var(--dur-2) ease !important; }
   .tab:active, button.btn:active { transform: none !important; }
   .divider:hover::after, .divider.dragging::after { transform: none !important; }
@@ -846,5 +601,4 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
 /* 系统要求「减少透明」时：遮罩和面板都变不透明，别透出后面的内容 */
 @media (prefers-reduced-transparency: reduce) {
   #overlay { background: #000; }
-  .panel { background: var(--panel-bg); }
 }

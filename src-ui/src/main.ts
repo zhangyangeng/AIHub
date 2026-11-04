@@ -1,8 +1,9 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
-import './styles/variables.css';
-import './styles/base.css';
+import './styles/variables.scss';
+import './styles/base.scss';
+import './styles/settings.scss';
 import { installTabDragGlobals } from '@/composables/useTabDrag';
 import { installDividerCleanup } from '@/composables/useDividerDrag';
 

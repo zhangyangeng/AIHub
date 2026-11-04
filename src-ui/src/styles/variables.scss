@@ -43,6 +43,10 @@
   --accent: #4d6bfe;
   --accent-hover: #5c78ff;
   --on-accent: #ffffff;
+  /* 强调色的淡底：选中态导航、浅色徽标、输入框聚焦光晕 */
+  --accent-soft: rgba(77, 107, 254, .18);
+  /* 开关的关闭态轨道 */
+  --switch-off: #3c4457;
 
   /* 动效令牌（曲线来自 easing 规范表，不自己编）：
      - 只动 transform / opacity：跳过布局与重绘，走 GPU 合成。
@@ -98,5 +102,7 @@
     --warn-fg: #8a5a00;
     --accent: #3b5bdb;
     --accent-hover: #3450c4;
+    --accent-soft: rgba(59, 91, 219, .10);
+    --switch-off: #cfd5df;
   }
 }
