@@ -177,8 +177,31 @@ pub fn request_layout(app: &tauri::AppHandle) {
 pub fn register_hotkey(app: &tauri::AppHandle, accelerator: &str, enabled: bool) -> Option<String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
+    // 注册表的增删只能在主线程上做。插件里的 `unregister_all()` 是**先拿锁、
+    // 再等主线程执行**（`run_main_thread!`），在别的线程上调就等于「握着锁等主线程」，
+    // 一旦主线程这时正在热键回调里（它自己也持着那把锁）就是死锁。
+    // 所以从别的线程过来的一律转投主线程，等它的结果。
+    if !is_main_thread() {
+        let handle = app.clone();
+        let acc = accelerator.to_string();
+        let (tx, rx) = std::sync::mpsc::channel();
+        if app
+            .run_on_main_thread(move || {
+                let _ = tx.send(register_hotkey(&handle, &acc, enabled));
+            })
+            .is_err()
+        {
+            return None;
+        }
+        return rx.recv().unwrap_or(None);
+    }
+
     let shortcut = app.global_shortcut();
     let _ = shortcut.unregister_all();
+    // unregister_all 把「设置面板」那个也一起清掉了。
+    // 不用自己记账：下面 `apply_settings_shortcut` 直接问插件注册表，
+    // 补登记这件事交给工作线程。
+    request_shortcut_sync(app);
     if !enabled || accelerator.trim().is_empty() {
         return None;
     }
@@ -197,6 +220,202 @@ pub fn register_hotkey(app: &tauri::AppHandle, accelerator: &str, enabled: bool)
             let msg = format!("快捷键 {acc} 注册失败（多半是被别的程序占用了）：{err}");
             eprintln!("[aihub] {msg}");
             Some(msg)
+        }
+    }
+}
+
+/// 设置面板的快捷键：`Ctrl+,`（macOS 上是 `⌘,`）。
+///
+/// 为什么要在 Rust 里再注册一次：站点视图是叠在外壳之上的独立 webview，
+/// 键盘焦点在站点那边时，外壳一个 keydown 都收不到——前端 `document` 上那个
+/// 监听只有「刚点过标签栏 / 工具栏」时才有效，正常用着站点按下去毫无反应。
+/// 所以在**窗口有焦点期间**把它临时挂成系统级快捷键，失焦立刻撤掉，
+/// 不会在别的应用里抢这个组合键。
+#[cfg(target_os = "macos")]
+const SETTINGS_ACCELERATOR: &str = "Command+Comma";
+#[cfg(not(target_os = "macos"))]
+const SETTINGS_ACCELERATOR: &str = "Ctrl+Comma";
+
+/// 加速键归一化，只用来判断「用户是不是把唤出键设成了同一个组合」。
+fn same_accelerator(a: &str, b: &str) -> bool {
+    fn norm(s: &str) -> String {
+        s.chars()
+            .filter(|c| !c.is_whitespace())
+            .flat_map(|c| c.to_lowercase())
+            .collect::<String>()
+            .replace(',', "comma")
+    }
+    norm(a) == norm(b)
+}
+
+/// 本应用现在是不是用户正在用的那个程序。
+///
+/// 这里不能用 `window.is_focused()`：一个窗口里叠着 N+1 个 webview（外壳 + 每个站点），
+/// 键盘焦点落在哪个子窗口上由 WebView2 自己管，winit 的窗口级焦点会跟着抖——
+/// 面板开合、站点视图显隐、切到另一个标签，都会让它变成 false。
+/// 用它来决定要不要注册，就会出现「明明正用着应用，Ctrl+, 忽然没反应」。
+///
+/// 真正需要的条件只有一个：前台窗口属于本进程。站点 webview 拿到焦点时，
+/// 前台窗口是它的子窗口，进程号仍然是我们的，判得对。
+#[cfg(windows)]
+fn app_is_foreground(_app: &tauri::AppHandle) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowThreadProcessId};
+
+    // SAFETY: 两个调用都只读系统状态，不碰调用方管理的内存。
+    unsafe {
+        let hwnd = GetForegroundWindow();
+        if hwnd.0.is_null() {
+            return false;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(hwnd, Some(&mut pid));
+        pid == std::process::id()
+    }
+}
+
+/// macOS 上多个 webview 是同一个 NSWindow 里的 NSView，窗口焦点状态是可靠的。
+#[cfg(not(windows))]
+fn app_is_foreground(app: &tauri::AppHandle) -> bool {
+    app.get_window(MAIN_WINDOW)
+        .and_then(|w| w.is_focused().ok())
+        .unwrap_or(false)
+}
+
+/// 主线程 id（`run()` 就是在主线程上跑的）。
+///
+/// 只用来判断「我现在是不是在主线程」。Tauri 没有公开这个接口，而它在这里
+/// 是安全性的前提：见 `spawn_shortcut_sync_worker` 的长注释。
+static MAIN_THREAD_ID: std::sync::OnceLock<std::thread::ThreadId> = std::sync::OnceLock::new();
+
+fn is_main_thread() -> bool {
+    MAIN_THREAD_ID
+        .get()
+        .map(|id| *id == std::thread::current().id())
+        .unwrap_or(false)
+}
+
+/// 注册失败的报错只报一次，别在每次焦点变化时刷屏。
+static SETTINGS_SHORTCUT_ERR: AtomicBool = AtomicBool::new(false);
+
+/// 请求重新摆一次「设置面板」快捷键的队列。
+pub struct ShortcutSync(pub std::sync::mpsc::Sender<()>);
+
+/// 改快捷键注册表这件事，为什么必须挪出主线程。
+///
+/// global-shortcut 在 Windows 上是「在主线程建一个隐藏窗口，WM_HOTKEY 直接
+/// 派发到这个窗口的 wndproc」——也就是**回调本身就在主线程上跑**，而且插件
+/// 派发时是持着自己的注册表锁进来调我们的闭包的：
+///
+/// ```text
+/// GlobalHotKeyEvent::set_event_handler(|e| {
+///     shortcuts_.lock().unwrap().get(&e.id)      // <- 锁一直握到闭包返回
+///         .map(|s| s.handler(...))
+/// })
+/// ```
+///
+/// 而 `unregister` / `on_shortcut` 要拿**同一把**锁。std 的 Mutex 不可重入，
+/// 同一线程重入就是永久卡死。于是下面这条路径会在按老板键隐藏窗口时必崩：
+///
+/// ```text
+/// 主线程：WM_HOTKEY -> 插件回调（持锁）-> toggle_window -> hide()
+///         -> 失焦事件 -> sync -> unregister -> 同一把锁 -> 死锁
+/// ```
+///
+/// 死锁点在 `hide()` 之后、消息泵还没跑起来的时候，所以窗口会留在屏幕上变成
+/// 「未响应」——正是用户看到的那张截图。
+///
+/// 还有个更隐蔽的坑：`app.run_on_main_thread()` 在**主线程上调用时不排队，
+/// 当场内联执行**（tauri-runtime-wry 的 `send_user_message` 对主线程走快路径）。
+/// 所以「投到主线程去同步」根本绕不开这个死锁，反而看起来像已经处理过了。
+///
+/// 结论：所有 `unregister` / `on_shortcut` 只在**这条独立工作线程**上做。
+/// 主线程只往队列里丢一张单子（不阻塞、不持锁），丢完立刻返回，插件回调
+/// 安然结束、放锁，之后工作线程再怎么拆装都不会和回调撞上。
+fn spawn_shortcut_sync_worker(app: tauri::AppHandle) -> std::sync::mpsc::Sender<()> {
+    let (tx, rx) = std::sync::mpsc::channel::<()>();
+    std::thread::spawn(move || {
+        while rx.recv().is_ok() {
+            // 焦点切换会连发好几次请求；等一小会儿把攒下的单子合成一次，
+            // 免得系统级快捷键被反复拆装。
+            std::thread::sleep(SHORTCUT_SYNC_DEBOUNCE);
+            while rx.try_recv().is_ok() {}
+            apply_settings_shortcut(&app);
+        }
+    });
+    tx
+}
+
+/// 焦点事件密集时用来合并请求的等待时间。
+const SHORTCUT_SYNC_DEBOUNCE: Duration = Duration::from_millis(40);
+
+/// 请求一次「设置面板」快捷键的对齐。
+///
+/// **只入队，不阻塞、不碰快捷键注册表**——这是它可以被主线程、被插件回调、
+/// 被 IPC 命令随便调的原因。真正的拆装见 `apply_settings_shortcut`。
+pub fn request_shortcut_sync(app: &tauri::AppHandle) {
+    if let Some(queue) = app.try_state::<ShortcutSync>() {
+        let _ = queue.0.send(());
+    }
+    // 队列还没装上（只可能发生在 setup 极早期）：什么都不做。
+    // 窗口拿到焦点后一定会再请求一次，没必要在这里抢着同步。
+}
+
+/// 真正动手拆装「设置面板」快捷键（**只允许在工作线程上调用**）。
+///
+/// `register_hotkey` 里那句 `unregister_all()` 会把这张注册表清空，
+/// 所以那边改完也要请求一次这个，谁也别把谁登记的东西弄丢。
+fn apply_settings_shortcut(app: &tauri::AppHandle) {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    debug_assert!(
+        !is_main_thread(),
+        "改快捷键注册表必须在工作线程上做，主线程上会撞上插件回调持有的锁"
+    );
+
+    // 用户把唤出键也设成了同一个组合时让唤出优先，别互相覆盖
+    let cfg = app.state::<AppState>().snapshot();
+    let conflict = cfg.hotkey.enabled && same_accelerator(&cfg.hotkey.accelerator, SETTINGS_ACCELERATOR);
+
+    let want = app_is_foreground(app) && !conflict;
+    // 闸门状态直接问插件：「这个组合现在挂在我们的注册表里吗」。
+    // 比自己在旁边记一个 bool 可靠——那边被 unregister_all() 清空时它自己是知道的，
+    // 我们记的那位却会停在 true 上，于是永远不再补登记。
+    let shortcut = app.global_shortcut();
+    let on = shortcut.is_registered(SETTINGS_ACCELERATOR);
+    if want == on {
+        return;
+    }
+
+    if !want {
+        let _ = shortcut.unregister(SETTINGS_ACCELERATOR);
+        return;
+    }
+
+    let handle = app.clone();
+    match shortcut.on_shortcut(SETTINGS_ACCELERATOR, move |_app, _sc, event| {
+        if event.state() != tauri_plugin_global_shortcut::ShortcutState::Pressed {
+            return;
+        }
+        // 面板开合由外壳自己处理（它同时负责让站点视图让位）
+        let _ = handle.emit("ui:open-settings", ());
+        // 焦点原来在站点视图上，面板一开站点就被藏起来了。
+        // 把键盘焦点交给外壳，否则 Esc 和 Tab 会落在一个看不见的窗口上。
+        if let Some(window) = handle.get_window(MAIN_WINDOW) {
+            if let Some(shell) = window.get_webview(views::SHELL_LABEL) {
+                let _ = shell.set_focus();
+            }
+        }
+    }) {
+        Ok(()) => {
+            SETTINGS_SHORTCUT_ERR.store(false, Ordering::Relaxed);
+            // 只在开发构建里说一声：切出切回都会走一次，release 版没必要刷屏
+            #[cfg(debug_assertions)]
+            eprintln!("[aihub] 设置快捷键 {SETTINGS_ACCELERATOR} 已就绪");
+        }
+        Err(err) => {
+            if !SETTINGS_SHORTCUT_ERR.swap(true, Ordering::Relaxed) {
+                eprintln!("[aihub] 设置快捷键 {SETTINGS_ACCELERATOR} 注册失败: {err}");
+            }
         }
     }
 }
@@ -352,6 +571,11 @@ pub(crate) fn summon_window(app: &tauri::AppHandle) {
         // 没开唤出置顶：顺手清掉可能残留的那一层（比如上次没摘干净）
         release_summon_pin(app, false);
     }
+
+    // 窗口重新拿到焦点时会有 Focused(true) 事件，交给那里去补登记。
+    // 这里补一次也无害——`request_shortcut_sync` 只是入队，不会在插件回调栈里
+    // 碰注册表（见 spawn_shortcut_sync_worker 的注释）。
+    request_shortcut_sync(app);
 }
 
 /// 老板键的行为：在前台就收起，不在前台就唤到最前。
@@ -360,12 +584,18 @@ fn toggle_window(app: &tauri::AppHandle) {
     let config = app.state::<AppState>().snapshot();
 
     let visible = window.is_visible().unwrap_or(false);
-    let focused = window.is_focused().unwrap_or(false);
+    // 同理不能用 window.is_focused()：焦点在站点视图上时窗口级焦点可能是 false，
+    // 于是「想收起」被当成「不在前台」，又唤出一次，看着像没反应。
+    let active = app_is_foreground(app);
 
-    if config.hotkey.action == "toggle" && visible && focused {
+    if config.hotkey.action == "toggle" && visible && active {
         // 收起之前先把唤出置顶摘掉：藏起来的窗口还挂着最高层，下次唤出的状态就乱了
         release_summon_pin(app, false);
         let _ = window.hide();
+        // 收起来就不该再占着 Ctrl+,。只入队，真正的注销由工作线程去做——
+        // 这里还在快捷键插件的回调栈上（Windows 上就是主线程），
+        // 当场调 unregister 会撞上插件自己持有的注册表锁（见 spawn_shortcut_sync_worker）。
+        request_shortcut_sync(app);
         return;
     }
 
@@ -532,6 +762,9 @@ fn has_unsent_draft(window: &tauri::Window, id: &str) -> bool {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // 记下主线程：`is_main_thread()` 和快捷键工作线程靠它守边界，越早记越好。
+    let _ = MAIN_THREAD_ID.set(std::thread::current().id());
+
     let mut config = config::load();
     // 上次删服务时勾了「清除登录数据」的，现在目录没被占用，可以真的删了
     if !config.pending_wipe.is_empty() {
@@ -575,6 +808,10 @@ pub fn run() {
         .invoke_handler(commands::handler())
         .setup(move |app| {
             let handle = app.handle().clone();
+
+            // 快捷键注册表的增删全部收口到这条线程（原因见 spawn_shortcut_sync_worker）。
+            // 必须赶在下面 register_hotkey 之前装好，否则启动那一次请求会落空。
+            app.manage(ShortcutSync(spawn_shortcut_sync_worker(handle.clone())));
 
             let window = tauri::window::WindowBuilder::new(app, MAIN_WINDOW)
                 .title("Aihub")
@@ -651,10 +888,14 @@ pub fn run() {
                     // 窗口让出前台：把快捷键唤出时临时抬起的置顶放下。
                     // 当场放，不等待——见 schedule_pin_release 的注释。
                     schedule_pin_release(&resize_handle);
+                    // 失焦就别再占着 Ctrl+, 了，否则会在别的应用里抢这个键
+                    request_shortcut_sync(&resize_handle);
                 }
                 WindowEvent::Focused(true) => {
                     // 刚让出前台又立刻回来了：置顶补回去，别被一次闪烁弄丢
                     restore_pin_if_bounced_back(&resize_handle);
+                    // 拿回焦点期间接管 Ctrl+,（站点视图盖着外壳时只有它能收到）
+                    request_shortcut_sync(&resize_handle);
                 }
                 WindowEvent::CloseRequested { api, .. } => {
                     save_window_preferences(&resize_handle);
@@ -669,6 +910,8 @@ pub fn run() {
                         if let Some(w) = resize_handle.get_window(MAIN_WINDOW) {
                             let _ = w.hide();
                         }
+                        // 收进托盘就不再占着 Ctrl+, 了，免得在别的应用里抢键
+                        request_shortcut_sync(&resize_handle);
                     }
                 }
                 _ => {}
@@ -680,6 +923,16 @@ pub fn run() {
                 register_hotkey(&handle, &cfg.hotkey.accelerator, cfg.hotkey.enabled);
                 ensure_tray(&handle);
             }
+
+            // 窗口刚建出来、还没真正显示时，前台状态是「未激活」，上面那次同步会跳过。
+            // 而 Focused 事件有可能早于 on_window_event 注册就已经发生过了，
+            // 结果就是应用明明就在眼前，Ctrl+, 却一直没注册上。
+            // 等窗口露出来之后再补一次，之后就交给焦点事件维持。
+            let boot_shortcut = handle.clone();
+            std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(700));
+                request_shortcut_sync(&boot_shortcut);
+            });
 
             // 布局必须从后台线程驱动（add_child 会阻塞等主线程），
             // 起一条串行的布局线程收口所有请求。
@@ -747,6 +1000,27 @@ mod tests {
         cfg.hotkey.tray = false;
         cfg.hotkey.close_to_tray = true;
         assert!(tray_needed(&cfg), "点关闭只隐藏时，托盘是唯一能把窗口找回来的入口");
+    }
+
+    #[test]
+    fn settings_accelerator_parses() {
+        // 常量写错了会在运行时静默注册失败，只有用户按下去才发现没反应。
+        use std::str::FromStr;
+        let parsed = tauri_plugin_global_shortcut::Shortcut::from_str(SETTINGS_ACCELERATOR);
+        assert!(parsed.is_ok(), "{SETTINGS_ACCELERATOR} 解析失败: {:?}", parsed.err());
+    }
+
+    #[test]
+    fn settings_accelerator_matches_hotkey_spellings() {
+        // 配置里那个组合键来自用户输入，写法五花八门；
+        // 判断「唤出键是不是也被设成了 Ctrl+,」必须认得这些等价写法。
+        assert!(same_accelerator("Ctrl+,", "Ctrl+Comma"));
+        assert!(same_accelerator("ctrl + ,", "Ctrl+Comma"));
+        assert!(same_accelerator("Ctrl+,".trim(), "Ctrl+Comma"));
+        // 不是同一个键就不能判等，否则会把用户的唤出键误当成冲突
+        assert!(!same_accelerator("Ctrl+.", "Ctrl+Comma"));
+        assert!(!same_accelerator("Ctrl+Shift+,", "Ctrl+Comma"));
+        assert!(!same_accelerator("Alt+Space", "Ctrl+Comma"));
     }
 
     #[test]

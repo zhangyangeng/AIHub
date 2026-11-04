@@ -734,6 +734,8 @@ pub fn window_hide(app: AppHandle) {
     if let Some(window) = app.get_window(MAIN_WINDOW) {
         let _ = window.hide();
     }
+    // 收起来就不再占着 Ctrl+, 了
+    crate::request_shortcut_sync(&app);
 }
 
 /// 设置面板开合：打开时所有站点视图让位，外壳整窗露出来。
@@ -745,6 +747,9 @@ pub fn ui_overlay(app: AppHandle, open: bool) {
         mgr.overlay_open = open;
     }
     request_layout(&app);
+    // 站点视图一藏一露会挪动键盘焦点，顺手确认一次 Ctrl+, 还挂着。
+    // 这个函数带状态闸门，状态没变就直接返回，不会反复拆装系统级快捷键。
+    crate::request_shortcut_sync(&app);
 }
 
 // ---------------------------------------------------------------------------

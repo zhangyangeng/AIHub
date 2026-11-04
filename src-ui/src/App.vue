@@ -81,7 +81,12 @@ function onKeydown(event: KeyboardEvent) {
     return;
   }
 
-  // Ctrl+, / ⌘, 打开设置。工具栏的提示里一直写着这个组合，之前没实现，按了没反应。
+  // Ctrl+, / ⌘, 打开设置。
+  //
+  // 这条只是兜底：站点视图是叠在外壳上的独立 webview，键盘焦点在站点那边时
+  // 这里根本收不到 keydown。真正生效的是 Rust 端在窗口有焦点期间注册的同名
+  // 系统级快捷键（lib.rs 的 sync_settings_shortcut），它通过 ui:open-settings
+  // 事件回来。两者不会重复触发——系统级快捷键会把按键吃掉。
   if (mod && (event.key === ',' || event.code === 'Comma') && !event.shiftKey && !event.altKey) {
     event.preventDefault();
     overlayStore.setSettings(true);
