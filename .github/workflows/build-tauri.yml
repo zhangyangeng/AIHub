@@ -123,6 +123,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # 更新日志要按「上一个标签..当前」取提交，只拉一个提交算不出来
+          fetch-depth: 0
 
       - uses: actions/download-artifact@v7
         with:
@@ -140,31 +143,24 @@ jobs:
             "${GITHUB_REF_NAME#v}" release "${GITHUB_REPOSITORY}" "${GITHUB_REF_NAME}"
           cat release/latest.json
 
+      # GitHub 的 --generate-notes 只统计合并进来的 PR，本仓库一直直接推 main，
+      # 它生成出来只有一行 Full Changelog 链接。这里按提交信息自己分组。
+      # 本地预览某个区间：node .github/scripts/make-release-notes.mjs - <base>
+      - name: 生成发版说明
+        run: node .github/scripts/make-release-notes.mjs /tmp/notes.md
+
       - name: 创建或更新 Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="${GITHUB_REF_NAME}"
+
           if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$tag" release/* --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/notes.md
           else
             gh release create "$tag" release/* \
               --repo "$GITHUB_REPOSITORY" \
               --title "Aihub $tag" \
-              --generate-notes
-          fi
-
-      # 说明的顺序很重要：升级提示必须排在自动生成的 commit 列表**前面**。
-      # 「要重新登录一次」这种事，用户得在点下载之前就看见，而不是往下翻三屏才发现。
-      - name: 组装 Release 说明（升级提示前置）
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if [ -f .github/release-footer.md ]; then
-            tag="${GITHUB_REF_NAME}"
-            gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json body -q .body > /tmp/generated.md
-            cat .github/release-footer.md > /tmp/body.md
-            printf '\n\n---\n\n' >> /tmp/body.md
-            cat /tmp/generated.md >> /tmp/body.md
-            gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --notes-file /tmp/body.md
+              --notes-file /tmp/notes.md
           fi

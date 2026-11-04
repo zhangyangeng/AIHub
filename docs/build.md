@@ -46,8 +46,16 @@ git push origin main --tags
 > 客户端一比「线上和我一样」，于是谁都收不到更新。`package.json` 和
 > `src-tauri/tauri.conf.json` 是两个地方，漏一个就会出现「界面显示的版本和实际不符」。
 
-Release 的说明会把 `.github/release-footer.md` 放在最前面，再拼上自动生成的 commit 列表。
-顺序是有意的：升级须知（比如「要重新登录一次」）必须在用户点下载之前就看见。
+Release 说明由 `.github/scripts/make-release-notes.mjs` 生成：按约定式提交分组，
+末尾附上一版本以来的完整变更链接。安装方式、系统要求、签名状态这些固定内容只写在 README，
+不随每个版本重复。
+
+改说明格式时可以本地预览任意区间，不用推标签等 CI：
+
+```bash
+node .github/scripts/make-release-notes.mjs -            # 上一个标签至今
+node .github/scripts/make-release-notes.mjs - 84fe2af    # 指定基准
+```
 
 ## 3. 签名状态
 
