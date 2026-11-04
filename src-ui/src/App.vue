@@ -78,6 +78,13 @@ function onKeydown(event: KeyboardEvent) {
     if (overlayStore.settingsOpen) {
       overlayStore.setSettings(false);
     }
+    return;
+  }
+
+  // Ctrl+, / ⌘, 打开设置。工具栏的提示里一直写着这个组合，之前没实现，按了没反应。
+  if (mod && (event.key === ',' || event.code === 'Comma') && !event.shiftKey && !event.altKey) {
+    event.preventDefault();
+    overlayStore.setSettings(true);
   }
 }
 
