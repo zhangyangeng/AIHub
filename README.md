@@ -52,7 +52,10 @@
 ```bash
 git clone https://github.com/zhangyangeng/AIHub.git
 cd AIHub
-npm install && npm --prefix src-ui install
+# 这是两个互相独立的包，两个都要装：根目录是 tauri 构建工具，src-ui 是前端
+# （vue / vite / sass）。只跑第一条的话前端起不来，会报 sass 之类的缺失。
+npm install
+npm --prefix src-ui install
 npm run tauri:dev
 ```
 
