@@ -15,7 +15,12 @@ use crate::layout::{normalize_weights, MAX_PANES};
 use crate::services::{default_services, migrate, Service, SERVICES_VERSION};
 
 pub const CONFIG_VERSION: u32 = 4; // 3 -> 4：新增 always_on_top / tab_bar_visible
-pub const HIBERNATE_CHOICES: [u32; 3] = [15, 30, 120];
+/// 后台标签休眠的档位（分钟）。档位越多越需要下拉框，一行分段按钮放不下。
+///
+/// 最小档给到 5 分钟而不是 1 分钟：`idle_candidates` 只判断「不在分屏里 + 闲置够久」，
+/// 没有「输入框里还有没发出去的字」这类豁免。档位设得太小，用户切走看一眼再回来，
+/// 正在写的草稿就随视图一起被销毁了。
+pub const HIBERNATE_CHOICES: [u32; 6] = [5, 10, 15, 30, 60, 120];
 pub const HIBERNATE_DEFAULT_MINUTES: u32 = 30;
 pub const HOTKEY_DEFAULT: &str = "Alt+Space";
 

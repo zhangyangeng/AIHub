@@ -6,14 +6,19 @@ import { useToast } from '@/composables/useToast';
 import { api } from '@/api';
 import SettingRow from '@/components/settings/SettingRow.vue';
 import SwitchBox from '@/components/settings/SwitchBox.vue';
-import SegBox from '@/components/settings/SegBox.vue';
+import SelectBox from '@/components/settings/SelectBox.vue';
 
 const appStore = useAppStore();
 const { toast } = useToast();
 
+// 档位一多一行就放不下，所以用下拉框。最小档 5 分钟——休眠判定只看「不在分屏 + 闲置够久」，
+// 没有「输入框里还有字」的豁免，再短的档位会把用户切走前没写完的草稿一起卸掉。
 const NAPS = [
+  { value: '5', label: '5 分钟' },
+  { value: '10', label: '10 分钟' },
   { value: '15', label: '15 分钟' },
   { value: '30', label: '30 分钟' },
+  { value: '60', label: '1 小时' },
   { value: '120', label: '2 小时' },
   { value: 'off', label: '不休眠' },
 ];
@@ -50,9 +55,9 @@ async function setPreload(on: boolean) {
       <div class="st-group-title">内存</div>
       <SettingRow
         title="后台标签自动休眠"
-        desc="闲置的后台标签会释放内存，点回去从原处继续。正在显示、播放声音或还写着字的标签不会被休眠。"
+        desc="闲置的后台标签会被卸载以释放内存，点回去重新加载。分屏里正显示着的标签不受影响。"
       >
-        <SegBox :model-value="nap" :options="NAPS" label="后台标签自动休眠" @update:model-value="setNap" />
+        <SelectBox :model-value="nap" :options="NAPS" label="后台标签自动休眠" @update:model-value="setNap" />
       </SettingRow>
     </div>
 

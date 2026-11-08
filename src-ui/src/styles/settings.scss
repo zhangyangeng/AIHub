@@ -273,6 +273,90 @@
   @include focus-ring(-2px);
 }
 
+/* ---------- 下拉选择 ---------- */
+/* 档位多到一行放不下时用它。自绘，外观跟 .seg 同一套：chip 底、无边框、8px 圆角。 */
+.sel {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 108px;
+  padding: 5px 8px 5px 12px;
+  border: none;
+  border-radius: 8px;
+  background: var(--chip-bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  cursor: pointer;
+  transition: background-color $t-base;
+}
+.sel-text {
+  flex: 1 1 auto;
+  text-align: left;
+  white-space: nowrap;
+}
+.sel-arrow {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 7px;
+  color: var(--fg-dim);
+  transition: transform $t-base, color $t-base;
+}
+.sel[aria-expanded="true"] { background: var(--hover); }
+.sel[aria-expanded="true"] .sel-arrow {
+  transform: rotate(180deg);
+  color: var(--fg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .sel:hover { background: var(--hover); }
+  .sel:hover .sel-arrow { color: var(--fg); }
+}
+.sel:focus-visible {
+  @include focus-ring(2px);
+}
+
+/* 展开的面板：观感沿用 .st-menu（panel-bg + divider + 阴影），坐标由组件量完按钮位置写进内联样式。 */
+.sel-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  padding: 4px;
+  max-height: 264px;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border: 1px solid var(--divider);
+  border-radius: 9px;
+  box-shadow: 0 12px 28px var(--shadow-strong);
+}
+.sel-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  /* 左右 8px + 面板 4px 内边距 = 12px，与按钮文字的左缩进对齐 */
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.sel-opt.is-active { background: var(--hover); }
+.sel-opt[aria-selected="true"] { color: var(--accent); }
+.sel-check {
+  flex: 0 0 auto;
+  width: 11px;
+  height: 9px;
+}
+
 /* ---------- 站点列表 ---------- */
 .st-list { border-top: 1px solid var(--line); }
 .st-item {
