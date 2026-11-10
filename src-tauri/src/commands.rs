@@ -986,17 +986,6 @@ pub async fn login_import(app: AppHandle, options: serde_json::Value) -> CmdResu
         .map_err(|e| format!("导入任务异常退出：{e}"))?
 }
 
-#[tauri::command]
-pub fn ui_split_menu(_point: serde_json::Value) -> CmdResult<serde_json::Value> {
-    // 原生右键菜单待接 Tauri 的 menu API；先让前端退回自绘菜单
-    Ok(serde_json::json!({ "ok": false, "fallback": "html" }))
-}
-
-#[tauri::command]
-pub fn ui_shell_menu(_point: serde_json::Value) -> CmdResult<serde_json::Value> {
-    Ok(serde_json::json!({ "ok": false, "fallback": "html" }))
-}
-
 pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         app_get_state, app_open_external, app_quit, app_version,
@@ -1015,7 +1004,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         window_set_always_on_top, window_set_tab_bar,
         window_summon, window_hide, ui_overlay,
         update_check, update_install,
-        login_export, login_import, ui_split_menu, ui_shell_menu,
+        login_export, login_import,
     ]
 }
 

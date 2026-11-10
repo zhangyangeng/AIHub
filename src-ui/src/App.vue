@@ -94,12 +94,8 @@ function onKeydown(event: KeyboardEvent) {
 }
 
 // ---- 页面空白处右键 ----
-function onContextMenu(event: MouseEvent) {
-  const el = event.target as HTMLElement;
-  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
-  event.preventDefault();
-  api.openShellMenu({ x: Math.round(event.clientX), y: Math.round(event.clientY) });
-}
+// 外壳右键菜单（ui_shell_menu）之前是个空壳：命令返回 fallback，前端没有回退实现，
+// 等于吃掉右键却不弹任何东西。已移除，右键恢复浏览器默认行为（或交给站点 webview）。
 
 let unlistenOpenSettings: (() => void) | null = null;
 let unlistenUpdate: (() => void) | null = null;
@@ -125,7 +121,6 @@ onMounted(async () => {
   });
 
   document.addEventListener('keydown', onKeydown);
-  document.addEventListener('contextmenu', onContextMenu);
 
   try {
     const initial = await api.getState();
@@ -141,7 +136,6 @@ onUnmounted(() => {
   if (unlistenOpenSettings) unlistenOpenSettings();
   if (unlistenUpdate) unlistenUpdate();
   document.removeEventListener('keydown', onKeydown);
-  document.removeEventListener('contextmenu', onContextMenu);
 });
 </script>
 

@@ -104,10 +104,6 @@ export const api: AihubApi = {
   openExternal: (url) => send('app_open_external', { url }),
   quit: () => send('app_quit'),
 
-  // ---- 右键菜单 ----
-  openSplitMenu: (point) => invoke('ui_split_menu', { point: point || {} }),
-  openShellMenu: (point) => invoke('ui_shell_menu', { point: point || {} }),
-
   // ---- 登录迁移（保留 asResult 语义：失败返回 {ok:false,error} 而非 reject）----
   exportLogin: (password) => asResult(invoke('login_export', { password: String(password || '') })),
   importLogin: (options) => asResult(invoke('login_import', { options: options || {} })),

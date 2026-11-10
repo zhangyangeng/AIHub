@@ -126,12 +126,6 @@ export interface UpdateAvailable {
   notes?: string;
 }
 
-/** 右键菜单点位 */
-export interface MenuPoint {
-  x?: number;
-  y?: number;
-}
-
 /**
  * 前端可用的全部后端接口。
  */
@@ -181,10 +175,6 @@ export interface AihubApi {
   setOverlay: (open: boolean) => void;
   openExternal: (url: string) => void;
   quit: () => void;
-
-  // ---- 右键菜单 ----
-  openSplitMenu: (point: MenuPoint) => Promise<unknown>;
-  openShellMenu: (point: MenuPoint) => Promise<unknown>;
 
   // ---- 登录迁移 ----
   exportLogin: (password: string) => Promise<LoginExportResult>;
