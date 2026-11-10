@@ -75,6 +75,15 @@ async function setHotkey(patch: Partial<HotkeyConfig>) {
     </div>
 
     <div class="st-group">
+      <div class="st-group-title">分屏</div>
+      <div class="st-note">
+        <p><b>按住标签</b>拖到页面区域，落在格子里就分成多栏；拖到已有内容的格子即互换。</p>
+        <p><b>右键点标签</b>加入或移出分屏。</p>
+        <p>拖动<b>栏间分隔条</b>调宽度，<b>双击</b>均分；最多四栏。</p>
+      </div>
+    </div>
+
+    <div class="st-group">
       <div class="st-group-title">窗口</div>
       <SettingRow title="窗口常驻置顶" desc="始终显示在其它程序之上。">
         <SwitchBox

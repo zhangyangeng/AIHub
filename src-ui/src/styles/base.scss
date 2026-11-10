@@ -11,6 +11,8 @@ body {
   color: var(--fg);
   font-family: "Segoe UI", "Microsoft YaHei", -apple-system, system-ui, sans-serif;
   font-size: 13px;
+  /* 中文字体默认字距偏紧，全局拉开一点，避免字贴字 */
+  letter-spacing: 0.2px;
   user-select: none;
 }
 

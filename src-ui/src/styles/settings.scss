@@ -199,6 +199,25 @@
   gap: 8px;
 }
 
+/* ---------- 只读说明块（分屏操作提示等） ----------
+   用卡片把一组说明包起来，一眼能看出是一块内容；
+   卡片内部行间距统一，不画分隔线，避免和上下分组的 st-row 抢节奏。 */
+.st-note {
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card-bg);
+}
+.st-note p {
+  margin: 0;
+  padding: 5px 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--fg-dim);
+}
+.st-note b { color: var(--fg); font-weight: 600; }
+
 /* ---------- 开关 ---------- */
 .sw {
   position: relative;
