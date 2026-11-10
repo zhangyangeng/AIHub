@@ -709,7 +709,13 @@ fn spawn_hibernate_thread(app: tauri::AppHandle) {
         let idle = {
             let state = app.state::<AppState>();
             let mgr = state.views.lock().expect("views 锁中毒");
-            mgr.idle_candidates(&visible, config.hibernate.minutes)
+            // 第三方登录弹窗在宽限期内整轮不收：弹窗和标签共用 session，
+            // 把标签本体收掉会让这次登录白做。
+            if mgr.popup_in_grace() {
+                Vec::new()
+            } else {
+                mgr.idle_candidates(&visible, config.hibernate.minutes)
+            }
         }; // 放锁再去碰窗口
 
         if idle.is_empty() {

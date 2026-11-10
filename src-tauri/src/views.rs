@@ -37,12 +37,23 @@ pub struct ViewManager {
     live: HashSet<String>,
     /// 上次活跃时间，休眠扫描用。
     last_active: HashMap<String, Instant>,
+    /// 正在加载页面的标签（on_page_load Started 进、Finished 出），休眠时豁免。
+    loading: HashSet<String>,
+    /// 最近一次第三方登录弹窗打开的时间，休眠时用它做「整轮不收」的宽限。
+    last_popup_at: Option<Instant>,
     /// 已经被休眠的（UI 上要打休眠标记）。
     hibernated: HashSet<String>,
     /// 设置面板打开时，所有站点视图让位给外壳。
     pub overlay_open: bool,
     pub last_geometry: Option<Geometry>,
 }
+
+/// 有第三方登录弹窗打开后，这个宽限期内的休眠扫描整轮跳过。
+///
+/// Tauri 的 on_new_window 拿不到「弹窗何时关闭」的信号（WebviewEvent 只有 DragDrop），
+/// 所以用时间衰减近似 Electron 的 popups.size 判空：OAuth 登录通常在几分钟内完成，
+/// 宽限期覆盖住弹窗存活的整个窗口期，宁可少省一点内存也别打断一次登录。
+const POPUP_GRACE: std::time::Duration = std::time::Duration::from_secs(3 * 60);
 
 impl ViewManager {
     pub fn touch(&mut self, id: &str) {
@@ -67,17 +78,41 @@ impl ViewManager {
     pub fn forget(&mut self, id: &str) {
         self.live.remove(id);
         self.last_active.remove(id);
+        self.loading.remove(id);
         self.hibernated.remove(id);
+    }
+
+    /// 页面开始/结束加载时调用，维护「正在加载」的标签集合。
+    pub fn set_loading(&mut self, id: &str, loading: bool) {
+        if loading {
+            self.loading.insert(id.to_string());
+        } else {
+            self.loading.remove(id);
+        }
+    }
+
+    /// 记录「刚开了一个第三方登录弹窗」。休眠扫描据此做整轮宽限。
+    pub fn note_popup(&mut self) {
+        self.last_popup_at = Some(Instant::now());
+    }
+
+    /// 最近有没有第三方登录弹窗在宽限期内开过。开着就整轮不回收。
+    pub fn popup_in_grace(&self) -> bool {
+        self.last_popup_at
+            .map(|t| t.elapsed() < POPUP_GRACE)
+            .unwrap_or(false)
     }
 
     /// 闲置超过 limit_minutes 且不在当前布局里的服务 id。
     /// 看得见的那几栏永远算活跃——不该在用户眼前被回收。
+    /// 正在加载的标签也豁免：把加载到一半的页面收掉，切回来就是白屏。
     pub fn idle_candidates(&self, visible: &[String], limit_minutes: u32) -> Vec<String> {
         let limit = std::time::Duration::from_secs(limit_minutes as u64 * 60);
         let now = Instant::now();
         self.live
             .iter()
             .filter(|id| !visible.contains(id))
+            .filter(|id| !self.loading.contains(*id))
             .filter(|id| {
                 self.last_active
                     .get(*id)
@@ -125,6 +160,11 @@ pub fn create_view(
             move |_webview, payload: PageLoadPayload<'_>| {
                 let app = app.clone();
                 let id = id.clone();
+                let loading = matches!(payload.event(), PageLoadEvent::Started);
+                // 同步维护 ViewManager 的 loading 标志，休眠扫描据此豁免正在加载的标签
+                if let Ok(mut mgr) = app.state::<crate::AppState>().views.lock() {
+                    mgr.set_loading(&id, loading);
+                }
                 match payload.event() {
                     PageLoadEvent::Started => {
                         let _ = app.emit("tab:status", serde_json::json!({
@@ -226,6 +266,10 @@ fn site_builder(
         .on_new_window(move |url, _features| {
             let scheme = url.scheme();
             if scheme == "http" || scheme == "https" {
+                // 记一笔「刚开过登录弹窗」，休眠扫描据此做宽限，别把正在 OAuth 的标签收掉
+                if let Ok(mut mgr) = app.state::<crate::AppState>().views.lock() {
+                    mgr.note_popup();
+                }
                 NewWindowResponse::Allow
             } else {
                 // mailto: / weixin: / alipays: 之类
