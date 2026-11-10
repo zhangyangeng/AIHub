@@ -121,6 +121,12 @@ export interface UpdateProgress {
   phase: 'downloading' | 'closing';
 }
 
+/** 启动自动检查发现的新版本（update:available 事件载荷） */
+export interface UpdateAvailable {
+  version?: string;
+  notes?: string;
+}
+
 /** 右键菜单点位 */
 export interface MenuPoint {
   x?: number;
@@ -153,7 +159,7 @@ export interface AihubApi {
   equalize: () => void;
   focusPane: (id: string) => void;
   dragDivider: (index: number, x: number) => void;
-  endDrag: (extra?: Record<string, unknown>) => void;
+  endDrag: (extra?: { index?: number; equalize?: boolean }) => void;
 
   // ---- 服务管理 ----
   addService: (input: { name: string; url: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
@@ -199,6 +205,7 @@ export interface AihubApi {
   removePane: (index: number) => Promise<{ ok: boolean; error?: string }>;
   getVersion: () => Promise<string>;
   onUpdateProgress: (handler: (progress: UpdateProgress) => void) => () => void;
+  onUpdateAvailable: (handler: (info: UpdateAvailable) => void) => () => void;
 }
 
 /** 全局类型声明：window.api 和 window.AIHUB_ICONS */

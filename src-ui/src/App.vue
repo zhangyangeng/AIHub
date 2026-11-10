@@ -19,7 +19,7 @@ const appStore = useAppStore();
 const statusStore = useStatusStore();
 const layoutStore = useLayoutStore();
 const overlayStore = useOverlayStore();
-const { visible, isError, sticky, message, actionLabel, dismiss } = useToast();
+const { visible, isError, sticky, message, actionLabel, dismiss, toastAction } = useToast();
 
 /** 中央提示文字（无服务/加载失败/加载中） */
 const stageMsg = computed(() => {
@@ -102,6 +102,7 @@ function onContextMenu(event: MouseEvent) {
 }
 
 let unlistenOpenSettings: (() => void) | null = null;
+let unlistenUpdate: (() => void) | null = null;
 
 onMounted(async () => {
   appStore.subscribe();
@@ -110,6 +111,18 @@ onMounted(async () => {
 
   // 主进程要求打开设置（托盘/菜单栏触发）
   unlistenOpenSettings = api.onOpenSettings(() => overlayStore.setSettings(true));
+
+  // 启动自动查更新，发现新版本弹提示（点「立即更新」走强制更新）
+  unlistenUpdate = api.onUpdateAvailable((info) => {
+    const v = info && info.version ? ` v${info.version}` : '';
+    toastAction(
+      `发现新版本${v}，可立即更新`,
+      '立即更新',
+      () => {
+        api.installUpdate();
+      },
+    );
+  });
 
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('contextmenu', onContextMenu);
@@ -126,6 +139,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (unlistenOpenSettings) unlistenOpenSettings();
+  if (unlistenUpdate) unlistenUpdate();
   document.removeEventListener('keydown', onKeydown);
   document.removeEventListener('contextmenu', onContextMenu);
 });

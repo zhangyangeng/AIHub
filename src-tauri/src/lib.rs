@@ -68,10 +68,20 @@ fn remember_window_size(app: &tauri::AppHandle) {
 }
 
 fn save_window_preferences(app: &tauri::AppHandle) {
-    let state = app.state::<AppState>();
-    let config = state.config.lock().expect("config 锁中毒");
-    if let Err(err) = config::save(&config) {
-        eprintln!("[aihub] 窗口设置保存失败: {err}");
+    // 退出前把所有还活着的站点 webview 停在哪一页记下来，
+    // 下次启动才回得到原来的对话位置。
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        let state = app.state::<AppState>();
+        let mut config = state.config.lock().expect("config 锁中毒");
+        let ids: Vec<String> = config.services.iter().map(|s| s.id.clone()).collect();
+        for id in ids {
+            if let Some(url) = views::current_url(&window, &id) {
+                config.last_urls.insert(id, url);
+            }
+        }
+        if let Err(err) = config::save(&config) {
+            eprintln!("[aihub] 窗口设置保存失败: {err}");
+        }
     }
 }
 
@@ -718,7 +728,14 @@ fn spawn_hibernate_thread(app: tauri::AppHandle) {
                 let mut mgr = state.views.lock().expect("views 锁中毒");
                 views::hibernate(&window, &mut mgr, &id)
             };
-            if hibernated {
+            if let Some(last_url) = hibernated {
+                // 写回休眠前停在哪一页，点回来才回得到原来的对话
+                let state = app.state::<AppState>();
+                let mut cfg = state.config.lock().expect("config 锁中毒");
+                cfg.last_urls.insert(id.clone(), last_url);
+                if let Err(err) = config::save(&cfg) {
+                    eprintln!("[aihub] 写回休眠地址失败: {err}");
+                }
                 eprintln!("[aihub] 休眠后台标签: {id}");
                 let _ = app.emit("tab:status", serde_json::json!({
                     "id": id, "hibernated": true, "loading": false, "error": null,
@@ -726,6 +743,29 @@ fn spawn_hibernate_thread(app: tauri::AppHandle) {
             }
         }
         broadcast(&app);
+    });
+}
+
+/// 启动后自动查一次更新。发现新版本就发 `update:available`，让外壳弹提示。
+///
+/// 只在打包版真的能查到：`app.updater()` 在 dev 下拿不到发布端点，
+/// 查到 error 时静默忽略，别在开发控制台刷一堆无意义的报错。
+fn spawn_update_check(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        // 等窗口和外壳都就绪、别和启动抢 IO
+        std::thread::sleep(std::time::Duration::from_secs(3));
+        use tauri_plugin_updater::UpdaterExt;
+        let Ok(updater) = app.updater() else { return };
+        match tauri::async_runtime::block_on(updater.check()) {
+            Ok(Some(update)) => {
+                let _ = app.emit("update:available", serde_json::json!({
+                    "version": update.version,
+                    "notes": update.body,
+                }));
+            }
+            Ok(None) => {}
+            Err(err) => eprintln!("[aihub] 启动查更新失败: {err}"),
+        }
     });
 }
 
@@ -946,6 +986,10 @@ pub fn run() {
 
             // 后台标签休眠的扫描线程
             spawn_hibernate_thread(handle.clone());
+
+            // 启动后自动查一次更新（对齐 Electron 版的 startUpdateChecks）。
+            // 只在打包版真的去查：开发 / 自检下 updater 拿不到发布端点，查到 error 也发不出去。
+            spawn_update_check(handle.clone());
 
             // 自检：AIHUB_SELFTEST=<脚本路径> 时，等外壳就绪后在里面跑一遍那个脚本。
             // 脚本的返回值回不来（WKWebView 的 evaluateJavaScript 不等 promise），

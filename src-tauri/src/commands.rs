@@ -120,9 +120,19 @@ pub fn app_quit(app: AppHandle) {
 
 #[tauri::command]
 pub fn tab_activate(app: AppHandle, id: String) {
+    // 切换前先记住当前这一栏停在哪一页，切走再切回来才回得到原来的对话。
+    // 必须在拿配置锁之前取：url() 不需要锁，但也不该在持锁时去问窗口。
+    let leaving = app.state::<AppState>().snapshot().active_id.clone();
+    let leaving_url = app
+        .get_window(views::MAIN_WINDOW)
+        .and_then(|w| views::current_url(&w, &leaving));
+
     mutate(&app, |cfg| {
         if cfg.get_service(&id).is_none() {
             return;
+        }
+        if let Some(url) = leaving_url {
+            cfg.last_urls.insert(leaving, url);
         }
         cfg.active_id = id.clone();
         if !cfg.panes.contains(&id) {
@@ -393,8 +403,18 @@ pub fn layout_drag(app: AppHandle, index: usize, x: f64) {
 }
 
 #[tauri::command]
-pub fn layout_drag_end(app: AppHandle) {
-    mutate(&app, |_cfg| {});
+pub fn layout_drag_end(app: AppHandle, index: Option<usize>, equalize: Option<bool>) {
+    // 松手时落盘 + 广播；双击分隔条传 equalize=true，把相邻两栏拉回等分。
+    if equalize == Some(true) {
+        mutate(&app, |cfg| {
+            let Some(i) = index else { return };
+            if let Some(next) = layout::equalize_divider(&cfg.weights, i) {
+                cfg.weights = next;
+            }
+        });
+    } else {
+        mutate(&app, |_cfg| {});
+    }
 }
 
 #[tauri::command]

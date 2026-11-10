@@ -16,8 +16,8 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-use tauri::webview::{NewWindowResponse, WebviewBuilder};
-use tauri::{LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl, Window, Wry};
+use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload, WebviewBuilder};
+use tauri::{Emitter, LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl, Window, Wry};
 
 use crate::config::{partition_dir, Config};
 use crate::layout::{compute_grid, GridShape, Geometry, MIN_SANE_HEIGHT, MIN_SANE_WIDTH};
@@ -114,6 +114,38 @@ pub fn create_view(
     h: f64,
 ) -> tauri::Result<Webview<Wry>> {
     let builder = site_builder(window, view_label(id), id, url)?;
+    // 真实标签才接状态流：加载开始/结束推 tab:status，标题变化推给标签栏。
+    // 账号迁移用的隐藏视图（migration_label）不走这里，不产生杂讯。
+    let app = window.app_handle().clone();
+    let id_owned = id.to_string();
+    let builder = builder
+        .on_page_load({
+            let app = app.clone();
+            let id = id_owned.clone();
+            move |_webview, payload: PageLoadPayload<'_>| {
+                let app = app.clone();
+                let id = id.clone();
+                match payload.event() {
+                    PageLoadEvent::Started => {
+                        let _ = app.emit("tab:status", serde_json::json!({
+                            "id": id, "loading": true, "error": null, "url": payload.url().as_str(),
+                        }));
+                    }
+                    PageLoadEvent::Finished => {
+                        let _ = app.emit("tab:status", serde_json::json!({
+                            "id": id, "loading": false, "error": null, "url": payload.url().as_str(),
+                        }));
+                    }
+                }
+            }
+        })
+        .on_document_title_changed({
+            let app = app.clone();
+            let id = id_owned.clone();
+            move |_webview, title| {
+                let _ = app.emit("tab:status", serde_json::json!({ "id": id, "title": title }));
+            }
+        });
     window.add_child(
         builder,
         LogicalPosition::new(x, y),
@@ -376,20 +408,36 @@ pub fn execute_plan(window: &Window, plan: &LayoutPlan) -> Vec<String> {
     created
 }
 
+/// 取一个站点 webview 当前的 URL，供写回 last_urls 用。
+///
+/// 只认 http(s) 地址——`about:blank`、加载失败页、第三方登录弹窗的地址都不该
+/// 写进去，否则下次点开这个标签会停在错误页上。
+pub fn current_url(window: &Window, id: &str) -> Option<String> {
+    let view = window.get_webview(&view_label(id))?;
+    let url = view.url().ok()?;
+    match url.scheme() {
+        "http" | "https" => Some(url.to_string()),
+        _ => None,
+    }
+}
+
 /// 休眠一个后台标签：真的把 webview 关掉，渲染进程还给系统。
 /// 点回来时 apply_layout 会按上次停留的地址重建。
-pub fn hibernate(window: &Window, mgr: &mut ViewManager, id: &str) -> bool {
+/// 返回休眠前的地址（http 才返回），交给调用方写进 last_urls。
+pub fn hibernate(window: &Window, mgr: &mut ViewManager, id: &str) -> Option<String> {
     let label = view_label(id);
     let Some(view) = window.get_webview(&label) else {
-        return false;
+        return None;
     };
+    // 先取地址再关：关掉之后 url() 就没得问了
+    let last = current_url(window, id);
     if view.close().is_err() {
-        return false;
+        return None;
     }
     mgr.live.remove(id);
     mgr.hibernated.insert(id.to_string());
     mgr.last_active.remove(id);
-    true
+    last
 }
 
 /// 彻底销毁（删服务时用），不打休眠标记。

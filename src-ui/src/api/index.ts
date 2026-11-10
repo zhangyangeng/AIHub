@@ -80,7 +80,7 @@ export const api: AihubApi = {
   equalize: () => send('layout_equalize'),
   focusPane: (id) => send('pane_focus', { id }),
   dragDivider: (index, x) => send('layout_drag', { index, x }),
-  endDrag: (extra) => send('layout_drag_end', extra || {}),
+  endDrag: (extra) => send('layout_drag_end', { index: extra?.index ?? 0, equalize: extra?.equalize ?? false }),
 
   // ---- 服务管理 ----
   addService: (input) => invoke('services_add', { input }),
@@ -117,6 +117,7 @@ export const api: AihubApi = {
   // ---- 更新 ----
   checkUpdate: () => invoke('update_check'),
   installUpdate: () => invoke('update_install'),
+  onUpdateAvailable: (handler) => on('update:available', handler),
 
   // ---- v4 新增 ----
   setAlwaysOnTop: (on) => invoke('window_set_always_on_top', { on: Boolean(on) }),
