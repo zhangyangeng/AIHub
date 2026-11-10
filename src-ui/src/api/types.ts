@@ -60,7 +60,6 @@ export interface AppState {
   panes: string[];
   weights: number[];
   maxPanes: number;
-  preload: boolean;
   theme: string;
   hotkey: HotkeyConfig;
   version: string;
@@ -171,8 +170,6 @@ export interface AihubApi {
   addBuiltin: (id: string) => Promise<{ ok: boolean; error?: string }>;
 
   // ---- 偏好 ----
-  setPreload: (on: boolean) => Promise<{ ok: boolean; error?: string; preload?: boolean }>;
-  getPreload: () => Promise<boolean>;
   setHibernate: (input: HibernateConfig) => Promise<{ ok: boolean; error?: string; hibernate?: HibernateConfig }>;
   setTheme: (theme: string) => Promise<{ ok: boolean; error?: string; theme?: string }>;
   setHotkey: (input: Partial<HotkeyConfig>) => Promise<{ ok: boolean; error?: string; hotkey?: HotkeyConfig; registered?: boolean }>;

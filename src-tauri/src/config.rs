@@ -130,8 +130,6 @@ pub struct Config {
     #[serde(rename = "pendingWipe", default)]
     pub pending_wipe: Vec<String>,
     #[serde(default)]
-    pub preload: bool,
-    #[serde(default)]
     pub hibernate: HibernateConfig,
     #[serde(default = "default_theme")]
     pub theme: String,
@@ -163,7 +161,6 @@ impl Default for Config {
             weights: Vec::new(),
             last_urls: HashMap::new(),
             pending_wipe: Vec::new(),
-            preload: false,
             hibernate: HibernateConfig::default(),
             theme: default_theme(),
             hotkey: HotkeyConfig::default(),
@@ -400,7 +397,6 @@ mod tests {
         let mut cfg: Config = serde_json::from_str(raw).expect("v3 配置应能读进来");
         cfg.normalize();
         assert_eq!(cfg.theme, "dark", "老主题要保留");
-        assert!(cfg.preload, "老的预加载偏好要保留");
         assert!(!cfg.hibernate.enabled, "老的休眠开关要保留");
         assert_eq!(cfg.hibernate.minutes, 15);
         assert_eq!(cfg.panes, vec!["claude", "chatgpt"], "老布局要保留");

@@ -79,7 +79,6 @@ pub fn state_payload(app: &AppHandle, config: &Config) -> serde_json::Value {
         "panes": config.panes,
         "weights": config.weights,
         "maxPanes": MAX_PANES,
-        "preload": config.preload,
         "hibernate": {
             "enabled": config.hibernate.enabled,
             "minutes": config.hibernate.minutes,
@@ -572,17 +571,6 @@ pub fn services_reorder(app: AppHandle, ids: Vec<String>) -> CmdResult<serde_jso
 // 偏好
 // ---------------------------------------------------------------------------
 
-#[tauri::command]
-pub fn config_set_preload(app: AppHandle, on: bool) -> serde_json::Value {
-    mutate_quiet(&app, |cfg| cfg.preload = on);
-    serde_json::json!({ "ok": true, "preload": on })
-}
-
-#[tauri::command]
-pub fn config_get_preload(app: AppHandle) -> bool {
-    app.state::<AppState>().snapshot().preload
-}
-
 #[derive(Deserialize)]
 pub struct HibernateInput {
     pub enabled: Option<bool>,
@@ -1017,7 +1005,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         layout_swap, layout_place, layout_remove_pane,
         layout_drag, layout_drag_end, pane_focus,
         services_add, services_update, services_remove, services_set_hidden, services_reorder,
-        config_set_preload, config_get_preload, config_set_hibernate,
+        config_set_hibernate,
         config_set_theme, config_set_hotkey, config_get_hotkey,
         services_available, services_add_builtin,
         #[cfg(debug_assertions)]

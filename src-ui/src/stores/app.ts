@@ -13,7 +13,6 @@ export const useAppStore = defineStore('app', {
     panes: [],
     weights: [],
     maxPanes: 4,
-    preload: true,
     theme: 'system',
     hotkey: {},
     version: '',

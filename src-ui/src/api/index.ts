@@ -92,8 +92,6 @@ export const api: AihubApi = {
   addBuiltin: (id) => invoke('services_add_builtin', { id }),
 
   // ---- 偏好 ----
-  setPreload: (on) => invoke('config_set_preload', { on: Boolean(on) }),
-  getPreload: () => invoke('config_get_preload'),
   setHibernate: (input) => invoke('config_set_hibernate', { input: input || {} }),
   setTheme: (theme) => invoke('config_set_theme', { theme: String(theme || '') }),
   setHotkey: (input) => invoke('config_set_hotkey', { input: input || {} }),
