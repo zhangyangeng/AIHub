@@ -67,6 +67,7 @@ export const api: AihubApi = {
 
   // ---- 标签 ----
   activate: (id) => send('tab_activate', { id }),
+  close: (id) => asResult(invoke('tab_close', { id })),
   reload: (id) => send('tab_reload', { id }),
   reloadHard: (id) => send('tab_reload_hard', { id }),
   home: (id) => send('tab_home', { id }),

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-// 标签栏：渲染顶栏服务，以及选中 / 分屏 / 加载 / 休眠状态，处理点击、拖拽与收起。
+// 标签栏：渲染顶栏服务，以及选中 / 分屏 / 加载 / 休眠状态，处理点击、拖拽与关闭页面。
+// 注意：这里的 ✕ 关的是「页面」，标签本身留在顶栏；把站点从顶栏收起的入口在设置-站点里。
 import { computed } from 'vue';
 import { useAppStore, useStatusStore } from '@/stores/app';
 import { builtinIcon } from '@/utils/icons';
@@ -87,15 +88,12 @@ function onContextMenu(event: MouseEvent, svc: Service) {
 }
 
 async function onClose(svc: Service) {
-  const res = await api.setServiceHidden(svc.id, true);
-  if (!res || !res.ok) return toast((res && res.error) || '收起失败', true);
+  const res = await api.close(svc.id);
+  if (!res || !res.ok) return toast((res && res.error) || '关闭失败', true);
   toastAction(
-    '已收起「' + svc.name + '」，可在设置里放回来',
-    '撤销',
-    async () => {
-      const back = await api.setServiceHidden(svc.id, false);
-      if (!back || !back.ok) toast((back && back.error) || '放回失败', true);
-    },
+    '已关闭「' + svc.name + '」的页面',
+    '重新打开',
+    () => appStore.activate(svc.id),
     6000,
   );
 }
@@ -133,7 +131,7 @@ async function onClose(svc: Service) {
         v-show="!onlyOne"
         class="close"
         role="button"
-        title="从顶栏收起（登录状态保留，可在设置里放回来）"
+        title="关闭页面"
         @click.stop.prevent="onClose(svc)"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

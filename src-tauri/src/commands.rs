@@ -134,13 +134,16 @@ pub fn tab_activate(app: AppHandle, id: String) {
         if let Some(url) = leaving_url {
             cfg.last_urls.insert(leaving, url);
         }
+        // 用切换前的焦点定位要替换的栏。不能拿 cfg.active_id 找：它马上要变成 id 了，
+        // 那样位置永远找不到、落到「换最后一栏」的分支上。
+        let prev_active = cfg.active_id.clone();
         cfg.active_id = id.clone();
         if !cfg.panes.contains(&id) {
             // 单栏模式下点标签 = 换掉当前这栏；多栏下换掉焦点那栏
             if cfg.panes.len() <= 1 {
                 cfg.panes = vec![id.clone()];
                 cfg.weights = layout::normalize_weights(None, 1);
-            } else if let Some(slot) = cfg.panes.iter().position(|p| p == &cfg.active_id) {
+            } else if let Some(slot) = replace_slot(&cfg.panes, &prev_active) {
                 cfg.panes[slot] = id.clone();
             } else {
                 let last = cfg.panes.len() - 1;
@@ -148,6 +151,68 @@ pub fn tab_activate(app: AppHandle, id: String) {
             }
         }
     });
+}
+
+/// 关掉某个标签的页面：卸载 webview、把这一栏从布局里撤掉，**标签本身留在顶栏**。
+///
+/// 和「收起」（`services_set_hidden`，入口只在设置-站点里）不是一回事：
+/// 收起是把站点整个从顶栏撤走；这里只是页面不跑了，标签还在，
+/// 点一下按上次停留的地址重建。所以这个按钮挂 ✕ 是说得通的——它真的把页面关掉了。
+#[tauri::command]
+pub fn tab_close(app: AppHandle, id: Option<String>) -> CmdResult<serde_json::Value> {
+    let id = resolve_tab_id(&app, id);
+
+    {
+        let config = app.state::<AppState>().snapshot();
+        if config.get_service(&id).is_none() {
+            return Err("找不到这个标签".to_string());
+        }
+        // 关掉最后一个标签的页面，壳里就只剩一块背景，而且下次 normalize 又会把它填回来。
+        // 与其留一个自相矛盾的状态，不如直接不许关。
+        if config.visible_services().len() <= 1 {
+            return Err("至少要留一个标签".to_string());
+        }
+    }
+
+    // 先问它停在哪一页：关掉之后 url() 就问不到了。
+    let last = app
+        .get_window(MAIN_WINDOW)
+        .and_then(|w| views::current_url(&w, &id));
+
+    // 卸载页面。借用休眠那套标记——运行时状态本来就一模一样：标签变暗，
+    // 点回来时 plan_layout 会按 last_urls 重建。锁在这里放开再去改配置，
+    // 反过来的顺序会跟后台休眠线程抢出死锁。
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        let state = app.state::<AppState>();
+        let mut mgr = state.views.lock().expect("views 锁中毒");
+        views::hibernate(&window, &mut mgr, &id);
+    }
+
+    mutate(&app, move |cfg| {
+        if let Some(url) = last {
+            cfg.last_urls.insert(id.clone(), url);
+        }
+        let Some(slot) = cfg.panes.iter().position(|p| p == &id) else {
+            // 这个标签本来就不在分屏里（后台标签）：页面卸掉就够了，布局不动
+            return Ok(serde_json::json!({ "ok": true }));
+        };
+        cfg.panes.remove(slot);
+        // 关掉后不自动打开别的标签：焦点清空，壳回到空白，等用户自己点。
+        // 关的若不是焦点栏，焦点保持不动。
+        if cfg.active_id == id {
+            cfg.active_id = String::new();
+        }
+        cfg.weights = layout::normalize_weights(None, cfg.panes.len());
+        Ok(serde_json::json!({ "ok": true }))
+    })
+}
+
+/// 多栏模式下，点一个不在分屏里的标签时该替换哪一栏：焦点那一栏。
+///
+/// 抽成纯函数方便单测。返回 `None` 表示焦点栏已经不在了（理论上不该发生），
+/// 调用方退回到「替换最后一栏」。
+fn replace_slot(panes: &[String], prev_active: &str) -> Option<usize> {
+    panes.iter().position(|p| p == prev_active)
 }
 
 /// 解析标签 id：`None` 或空串表示当前标签。
@@ -1012,7 +1077,7 @@ pub async fn login_import(app: AppHandle, options: serde_json::Value) -> CmdResu
 pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         app_get_state, app_open_external, app_quit, app_version,
-        tab_activate, tab_reload, tab_reload_hard, tab_home, tab_devtools, tab_zoom,
+        tab_activate, tab_close, tab_reload, tab_reload_hard, tab_home, tab_devtools, tab_zoom,
         layout_get, layout_set_panes, layout_single, layout_equalize,
         layout_swap, layout_place, layout_remove_pane,
         layout_drag, layout_drag_end, pane_focus,
@@ -1049,5 +1114,19 @@ mod tests {
         assert!(!slugify("智谱").is_empty());
         assert!(!slugify("---").is_empty());
         assert!(!slugify("").is_empty());
+    }
+
+    #[test]
+    fn switching_tab_replaces_the_focused_pane_not_the_last() {
+        // 多栏下点一个不在分屏里的标签，应替换「焦点那一栏」，而不是永远换最后一栏
+        let panes = vec!["a".to_string(), "b".to_string(), "c".to_string()];
+        assert_eq!(replace_slot(&panes, "b"), Some(1));
+        assert_eq!(replace_slot(&panes, "a"), Some(0));
+    }
+
+    #[test]
+    fn replace_slot_is_none_when_focus_is_gone() {
+        let panes = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(replace_slot(&panes, "c"), None);
     }
 }

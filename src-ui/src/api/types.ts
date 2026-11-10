@@ -140,6 +140,7 @@ export interface AihubApi {
 
   // ---- 标签 ----
   activate: (id: string) => void;
+  close: (id: string | null) => Promise<{ ok: boolean; error?: string }>;
   reload: (id: string | null) => void;
   reloadHard: (id: string | null) => void;
   home: (id: string | null) => void;

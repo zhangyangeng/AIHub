@@ -24,7 +24,15 @@ const { visible, isError, sticky, message, actionLabel, dismiss, toastAction } =
 /** 中央提示文字（无服务/加载失败/加载中） */
 const stageMsg = computed(() => {
   const svc = appStore.services.find((s) => s.id === appStore.activeId);
-  if (!svc) return '还没有任何服务，点右上角 ⚙ 添加一个吧。';
+  // 站点区平时就显示这条稳定引导，不随有没有焦点来回跳；
+  // 只有「加载中」和「出错」两种实时的运行反馈需要临时覆盖它。
+  const guide = (() => {
+    const acc = prettyAccel((appStore.hotkey && appStore.hotkey.accelerator) || 'Alt+Space');
+    return '点上方标签切换站点 · ' + acc + ' 全局唤出 · F5 刷新当前标签';
+  })();
+  if (!svc) {
+    return appStore.services.length > 0 ? guide : '还没有任何服务，点右上角 ⚙ 添加一个吧。';
+  }
   const st = statusStore.statusOf(svc.id);
   if (st.error) {
     return '「' + svc.name + '」加载失败：' + (st.error.desc || st.error.code) + '。按 F5 重试，或在设置里检查网址。';
@@ -32,9 +40,7 @@ const stageMsg = computed(() => {
   if (st.loading) {
     return '正在打开「' + svc.name + '」…';
   }
-  // 站点加载完成后的全局快捷键提示（只列真正实现了的键，别承诺不存在的）
-  const acc = prettyAccel((appStore.hotkey && appStore.hotkey.accelerator) || 'Alt+Space');
-  return '全局唤出：' + acc + ' · 点标签切换 · F5 刷新当前标签';
+  return guide;
 });
 
 // 标签栏收起时，站点视图顶边从 44 变 0，外壳要同步撤掉顶栏
