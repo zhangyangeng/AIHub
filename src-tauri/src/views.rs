@@ -233,7 +233,13 @@ fn site_builder(
     })?;
 
     let app = window.app_handle().clone();
+    // 开发者工具是否启用，严格跟随配置里的 devtools 开关。
+    //
+    // WebView2 的 AreDevToolsEnabled 只能在 webview 创建时固化、运行中改不了，
+    // 所以这里创建时就定死；开关切换由 config_set_devtools 负责重建站点视图。
+    let devtools_enabled = app.state::<crate::AppState>().snapshot().devtools;
     Ok(WebviewBuilder::new(label, WebviewUrl::External(parsed))
+        .devtools(devtools_enabled)
         // 站点页面也要关掉原生拖放处理器，否则「往对话里拖文件上传」是死的。
         //
         // Tauri 默认给每个 webview 装一个接收文件的处理器，而它不只是「接收」：
@@ -490,6 +496,23 @@ pub fn destroy(window: &Window, mgr: &mut ViewManager, id: &str) {
         let _ = view.close();
     }
     mgr.forget(id);
+}
+
+/// 关掉所有还活着的站点 webview、清空 live 集合，让下一次 relayout 全部重建。
+///
+/// 用途：开发者工具开关切换。WebView2 的 AreDevToolsEnabled 只能在 webview
+/// 创建时固化，运行中改不了，所以要「关掉旧的、按新配置建新的」才能让开关
+/// 真正生效。不碰 last_active / last_urls：重建后用户当前页面地址仍在，
+/// 只是重新加载一次而已。
+pub fn rebuild_all_site_views(window: &Window, mgr: &mut ViewManager) {
+    let ids: Vec<String> = mgr.live.iter().cloned().collect();
+    for id in &ids {
+        if let Some(view) = window.get_webview(&view_label(id)) {
+            let _ = view.close();
+        }
+        mgr.live.remove(id);
+        // 保留 hibernated 状态不动：休眠中的视图本来就没在跑，无需重建
+    }
 }
 
 #[cfg(test)]

@@ -116,6 +116,7 @@ export const api: AihubApi = {
   // ---- v4 新增 ----
   setAlwaysOnTop: (on) => invoke('window_set_always_on_top', { on: Boolean(on) }),
   setTabBar: (visible) => invoke('window_set_tab_bar', { visible: Boolean(visible) }),
+  setDevtools: (on) => invoke('config_set_devtools', { on: Boolean(on) }),
   placePane: (id, index) => invoke('layout_place', { id, index }),
   swapPanes: (a, b) => invoke('layout_swap', { a, b }),
   removePane: (index) => invoke('layout_remove_pane', { index }),

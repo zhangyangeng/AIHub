@@ -89,6 +89,7 @@ pub fn state_payload(app: &AppHandle, config: &Config) -> serde_json::Value {
         // v4 新增
         "alwaysOnTop": config.always_on_top,
         "tabBarVisible": config.tab_bar_visible,
+        "devtools": config.devtools,
         "version": app.package_info().version.to_string(),
         "platform": std::env::consts::OS,
     })
@@ -201,18 +202,16 @@ pub fn tab_home(app: AppHandle, id: Option<String>) {
 
 #[tauri::command]
 pub fn tab_devtools(app: AppHandle, id: Option<String>) {
-    #[cfg(debug_assertions)]
-    {
-        let id = resolve_tab_id(&app, id);
-        if let Some(window) = app.get_window(MAIN_WINDOW) {
-            if let Some(view) = window.get_webview(&view_label(&id)) {
-                view.open_devtools();
-            }
-        }
+    // 开发者工具不再锁死 debug 构建：release 版里站点出问题（白屏/报错）最需要看
+    // console，却恰恰复现不了。改由配置里的 devtools 开关决定，默认关闭。
+    if !app.state::<AppState>().snapshot().devtools {
+        return;
     }
-    #[cfg(not(debug_assertions))]
-    {
-        let _ = (app, id);
+    let id = resolve_tab_id(&app, id);
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        if let Some(view) = window.get_webview(&view_label(&id)) {
+            view.open_devtools();
+        }
     }
 }
 
@@ -718,6 +717,30 @@ pub fn window_set_tab_bar(app: AppHandle, visible: bool) -> serde_json::Value {
     serde_json::json!({ "ok": true, "tabBarVisible": visible })
 }
 
+// ---------------------------------------------------------------------------
+// 功能：开发者工具开关
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn config_set_devtools(app: AppHandle, on: bool) -> serde_json::Value {
+    mutate_quiet(&app, |cfg| cfg.devtools = on);
+
+    // WebView2 的 AreDevToolsEnabled 只能在 webview 创建时固化，运行中改不了。
+    // 所以切开关要「关掉所有站点视图、清空 live」，再触发重排按新配置重建。
+    // close() 会阻塞等主线程，必须放锁之后、走布局线程那套串行通道。
+    let Some(window) = app.get_window(MAIN_WINDOW) else {
+        return serde_json::json!({ "ok": true, "devtools": on });
+    };
+    {
+        let state = app.state::<AppState>();
+        let mut mgr = state.views.lock().expect("views 锁中毒");
+        views::rebuild_all_site_views(&window, &mut mgr);
+    } // <- 放锁
+    request_layout(&app);
+
+    serde_json::json!({ "ok": true, "devtools": on })
+}
+
 /// 托盘菜单用：把标签栏收起 / 放回来。
 pub fn toggle_tab_bar(app: &AppHandle) {
     let visible = !app.state::<AppState>().snapshot().tab_bar_visible;
@@ -1002,6 +1025,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         #[cfg(debug_assertions)]
         debug_note,
         window_set_always_on_top, window_set_tab_bar,
+        config_set_devtools,
         window_summon, window_hide, ui_overlay,
         update_check, update_install,
         login_export, login_import,

@@ -65,6 +65,7 @@ export interface AppState {
   version: string;
   alwaysOnTop?: boolean;
   tabBarVisible?: boolean;
+  devtools?: boolean;
   hibernate?: HibernateConfig;
   userData?: string;
   update?: UpdateInfo;
@@ -187,6 +188,7 @@ export interface AihubApi {
   // ---- v4 新增 ----
   setAlwaysOnTop: (on: boolean) => Promise<{ ok: boolean; error?: string; alwaysOnTop?: boolean }>;
   setTabBar: (visible: boolean) => Promise<{ ok: boolean; error?: string; tabBarVisible?: boolean }>;
+  setDevtools: (on: boolean) => Promise<{ ok: boolean; error?: string; devtools?: boolean }>;
   placePane: (id: string, index: number) => Promise<{ ok: boolean; error?: string }>;
   swapPanes: (a: number, b: number) => Promise<{ ok: boolean; error?: string }>;
   removePane: (index: number) => Promise<{ ok: boolean; error?: string }>;

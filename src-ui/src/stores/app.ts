@@ -18,6 +18,7 @@ export const useAppStore = defineStore('app', {
     version: '',
     alwaysOnTop: true,
     tabBarVisible: true,
+    devtools: false,
   }),
 
   getters: {

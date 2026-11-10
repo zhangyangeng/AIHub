@@ -143,6 +143,13 @@ pub struct Config {
     /// 标签栏是否显示。关掉之后站点视图铺满整个窗口。
     #[serde(rename = "tabBarVisible", default = "default_true")]
     pub tab_bar_visible: bool,
+    /// 是否开放站点开发者工具（相当于网页的 F12 控制台）。
+    ///
+    /// 默认关闭：普通用户用不上，还容易误触。排查「站点在壳里白屏/报错」时由用户
+    /// 自行打开——这类问题在 release 版才最常出现，而 release 版之前是拿不到
+    /// devtools 的（tab_devtools 被 debug_assertions 门控着）。
+    #[serde(default)]
+    pub devtools: bool,
 }
 
 fn default_theme() -> String {
@@ -166,6 +173,7 @@ impl Default for Config {
             hotkey: HotkeyConfig::default(),
             always_on_top: true,
             tab_bar_visible: true,
+            devtools: false,
         }
     }
 }

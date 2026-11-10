@@ -40,6 +40,12 @@ async function setAlwaysOnTop(on: boolean) {
   appStore.apply({ ...appStore.$state, alwaysOnTop: Boolean(res.alwaysOnTop) });
 }
 
+async function setDevtools(on: boolean) {
+  const res = await api.setDevtools(on);
+  if (!res || !res.ok) return toast('设置失败', true);
+  appStore.apply({ ...appStore.$state, devtools: Boolean(res.devtools) });
+}
+
 async function setHotkey(patch: Partial<HotkeyConfig>) {
   const res = await api.setHotkey(patch);
   if (!res || !res.ok) return toast((res && res.error) || '设置失败', true);
@@ -90,6 +96,13 @@ async function setHotkey(patch: Partial<HotkeyConfig>) {
           :model-value="appStore.alwaysOnTop !== false"
           label="窗口常驻置顶"
           @update:model-value="setAlwaysOnTop"
+        />
+      </SettingRow>
+      <SettingRow title="开发者工具" desc="开启后，在「站点」页每个服务的操作菜单里可打开控制台排查报错。">
+        <SwitchBox
+          :model-value="appStore.devtools === true"
+          label="开发者工具"
+          @update:model-value="setDevtools"
         />
       </SettingRow>
       <SettingRow title="显示托盘图标" desc="关掉之后窗口收进后台就没有点回来的入口了。">
