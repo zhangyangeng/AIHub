@@ -191,6 +191,9 @@ npm run test:ui        # 前端静态检查（IPC 契约 + 类型 + 打包 + 模
 npm run tauri:build    # 出安装包
 ```
 
+本地构建/验证请用上面的 `tauri:dev` / `tauri:build`，不要直接 `cargo build`——
+前端资源是编译期嵌进二进制的，裸 `cargo build` 产出的 exe 没有外壳界面。
+
 仓库里还保留着迁 Tauri 之前那套 Electron 实现（`main.js` / `preload.js` / 根目录 `index.html`），
 只做不破坏性的维护，方便对照。**改功能请改 `src-tauri/` + `src-ui/` 那一套**，两边功能不再同步。
 
