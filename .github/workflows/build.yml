@@ -1,20 +1,16 @@
 name: Build
 
-# 自动打包：Windows x64（NSIS 安装包）+ macOS arm64（dmg / zip，Apple Silicon）。
-# 推 main 和提 PR 时只出产物（Artifacts），推 v* 标签时额外发一个 Release。
-# 注意：这里**刻意不监听 v* 标签**。
-# 发版由 build-tauri.yml 负责；两个工作流都监听标签的话，谁先跑完谁的产物先上 Release，
-# v0.3.0 就是这么被传上去一个 113 MB 的 Electron 包的（本该是 2 MB 的 Tauri 包）。
-# 这套留作回退路径，只在推 main / 提 PR / 手动触发时出 Artifacts，不碰 Release。
+# 自动打包（Electron 回退路径）：Windows x64（NSIS 安装包）+ macOS arm64（dmg / zip，Apple Silicon）。
+# 只在手动触发（workflow_dispatch）时跑，出 Artifacts，不碰 Release。
+# 这套留作回退：日常发版由 build-tauri.yml 负责；两个工作流都监听标签的话，
+# 谁先跑完谁的产物先上 Release，v0.3.0 就是这么被传上去一个 113 MB 的 Electron 包
+# （本该是 2 MB 的 Tauri 包）。已经确定走 Tauri 了，没必要每次推 main 再证明一遍它能打。
 on:
-  push:
-    branches: [main, master]
-  pull_request:
   workflow_dispatch:
 
-# Release 需要写权限；其余步骤只读
+# 只上传 Artifacts，不建 Release，读权限就够
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   windows-x64:
@@ -94,7 +90,6 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  # 只有推 v* 标签才走的发布任务：把上面两个 job 的产物挂到 Release 上
-  # 原来这里有个 release job（推 v* 标签时建 Release）。已经删掉：
+  # 这里原来有个 release job（推 v* 标签时建 Release），已经删掉：
   # 发版统一由 build-tauri.yml 负责，两套都建 Release 会互相覆盖产物。
-  # 这个工作流现在只出 Artifacts，作为 Electron 版的回退构建路径。
+  # 这个工作流只出 Artifacts，作为 Electron 版的回退构建路径。

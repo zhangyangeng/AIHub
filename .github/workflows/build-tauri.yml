@@ -1,21 +1,39 @@
 name: Build (Tauri)
 
 # Tauri 版打包：Windows x64（NSIS）+ macOS arm64（dmg）。
-# 推 main / 提 PR 时只出产物；推 v* 标签时额外发 Release 并生成 latest.json
-# （tauri-plugin-updater 的更新源，对应 Electron 版的 latest.yml）。
+# 只在推 v* 标签时打包并发 Release（含 latest.json，tauri-plugin-updater 的更新源）；
+# main / PR 上只跑 test 门禁，不出包——打包是 cargo release 全量编译，两个平台十几分钟，
+# 每次都跑只会让每次推送都卡在等 CI 上。打包能不能过，交给打标签那一次验证。
+# 要用 main 上的代码出个包，手动触发（workflow_dispatch）。
 on:
   push:
     branches: [main, master]
     tags: ['v*']
+    # 纯文档改动不跑。路径过滤对 tag 推送不生效（GitHub 的既定行为），
+    # 所以这不会影响发版。
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
+
+# 同一分支又推了一次时，取消上一轮还在排队的构建。
+# 标签构建例外：发版中途被取消会留下半个 Release。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/v') }}
 
 permissions:
   contents: write
 
 jobs:
-  # Rust 侧的快速门禁：布局几何 / 配置迁移 / 视图回收都有单测，
-  # 挂了就别浪费十几分钟去打包了。
+  # Rust 侧的快速门禁：布局几何 / 配置迁移 / 视图回收都有单测。
+  # main / PR 上真正跑的只有这个 job；它挂了就别打标签了。
   test:
     name: Rust 测试
     runs-on: ubuntu-latest
@@ -46,9 +64,11 @@ jobs:
         working-directory: src-tauri
         run: cargo test --all-features
 
+  # 打包作业：只有打标签发版、或手动触发才跑。
   build:
     name: ${{ matrix.label }}
     needs: test
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:

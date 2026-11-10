@@ -64,8 +64,9 @@ npm run tauri:dev
 
 **方式三：让 GitHub 帮你构建**
 
-推送到 `main` 或提 PR 时会自动构建 Windows x64 和 macOS arm64，产物挂在这次运行的
-**Artifacts** 里。推一个 `v*` 标签则会发正式 Release 并生成更新用的 `latest.json`。
+推送到 `main` 或提 PR 时会自动跑检查（Rust 单测、前端类型检查和打包校验）。要出安装包，
+推一个 `v*` 标签——会构建 Windows x64 和 macOS arm64、发正式 Release，并生成更新用的
+`latest.json`。只想拿 main 上的代码打个包试试，在 Actions 里手动触发 `Build (Tauri)` 即可。
 
 ---
 

@@ -3,8 +3,22 @@ name: CI
 on:
   push:
     branches: [main, master]
+    # 只改了文档的提交不必占 runner。
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
   workflow_dispatch:
+
+# 同一分支又推了一次时，取消上一轮还在跑的检查。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 # 只跑不依赖网络的检查：语法、图标素材是否和图标表对得上。
 # 完整的功能自检（tools/smoke.js，会真的打开窗口加载各家站点）留在本地跑，见 README。
