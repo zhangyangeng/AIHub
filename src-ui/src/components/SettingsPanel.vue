@@ -21,26 +21,8 @@ const visible = ref(false);
 const closing = ref(false);
 let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
-const SECTION_KEY = 'aihub.settings.section';
-
-function storedSection(): string {
-  try {
-    return localStorage.getItem(SECTION_KEY) || 'sites';
-  } catch {
-    return 'sites';
-  }
-}
-
-/** 记住上次停留的分区：常改的往往就是同一个开关，不该每次都从头找 */
-const section = ref(storedSection());
-
-watch(section, (value) => {
-  try {
-    localStorage.setItem(SECTION_KEY, value);
-  } catch {
-    // 存不了就每次从站点页开始，不影响使用
-  }
-});
+/** 每次打开都从第一个分区（站点）开始 */
+const section = ref('sites');
 
 function close() {
   overlayStore.setSettings(false);
@@ -52,6 +34,8 @@ watch(open, (now) => {
     if (closeTimer) clearTimeout(closeTimer);
     closing.value = false;
     visible.value = true;
+    // 面板常驻挂载，组件实例不会销毁，分区会沿用上次点的值——每次打开都重置回第一个
+    section.value = 'sites';
     return;
   }
   closing.value = true;
