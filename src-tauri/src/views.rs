@@ -16,8 +16,8 @@
 use std::collections::{HashMap, HashSet};
 use std::time::Instant;
 
-use tauri::webview::{NewWindowResponse, WebviewBuilder};
-use tauri::{LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl, Window, Wry};
+use tauri::webview::{NewWindowResponse, PageLoadEvent, PageLoadPayload, WebviewBuilder};
+use tauri::{Emitter, LogicalPosition, LogicalSize, Manager, Webview, WebviewUrl, Window, Wry};
 
 use crate::config::{partition_dir, Config};
 use crate::layout::{compute_grid, GridShape, Geometry, MIN_SANE_HEIGHT, MIN_SANE_WIDTH};
@@ -37,12 +37,23 @@ pub struct ViewManager {
     live: HashSet<String>,
     /// 上次活跃时间，休眠扫描用。
     last_active: HashMap<String, Instant>,
+    /// 正在加载页面的标签（on_page_load Started 进、Finished 出），休眠时豁免。
+    loading: HashSet<String>,
+    /// 最近一次第三方登录弹窗打开的时间，休眠时用它做「整轮不收」的宽限。
+    last_popup_at: Option<Instant>,
     /// 已经被休眠的（UI 上要打休眠标记）。
     hibernated: HashSet<String>,
     /// 设置面板打开时，所有站点视图让位给外壳。
     pub overlay_open: bool,
     pub last_geometry: Option<Geometry>,
 }
+
+/// 有第三方登录弹窗打开后，这个宽限期内的休眠扫描整轮跳过。
+///
+/// Tauri 的 on_new_window 拿不到「弹窗何时关闭」的信号（WebviewEvent 只有 DragDrop），
+/// 所以用时间衰减近似 Electron 的 popups.size 判空：OAuth 登录通常在几分钟内完成，
+/// 宽限期覆盖住弹窗存活的整个窗口期，宁可少省一点内存也别打断一次登录。
+const POPUP_GRACE: std::time::Duration = std::time::Duration::from_secs(3 * 60);
 
 impl ViewManager {
     pub fn touch(&mut self, id: &str) {
@@ -67,17 +78,41 @@ impl ViewManager {
     pub fn forget(&mut self, id: &str) {
         self.live.remove(id);
         self.last_active.remove(id);
+        self.loading.remove(id);
         self.hibernated.remove(id);
+    }
+
+    /// 页面开始/结束加载时调用，维护「正在加载」的标签集合。
+    pub fn set_loading(&mut self, id: &str, loading: bool) {
+        if loading {
+            self.loading.insert(id.to_string());
+        } else {
+            self.loading.remove(id);
+        }
+    }
+
+    /// 记录「刚开了一个第三方登录弹窗」。休眠扫描据此做整轮宽限。
+    pub fn note_popup(&mut self) {
+        self.last_popup_at = Some(Instant::now());
+    }
+
+    /// 最近有没有第三方登录弹窗在宽限期内开过。开着就整轮不回收。
+    pub fn popup_in_grace(&self) -> bool {
+        self.last_popup_at
+            .map(|t| t.elapsed() < POPUP_GRACE)
+            .unwrap_or(false)
     }
 
     /// 闲置超过 limit_minutes 且不在当前布局里的服务 id。
     /// 看得见的那几栏永远算活跃——不该在用户眼前被回收。
+    /// 正在加载的标签也豁免：把加载到一半的页面收掉，切回来就是白屏。
     pub fn idle_candidates(&self, visible: &[String], limit_minutes: u32) -> Vec<String> {
         let limit = std::time::Duration::from_secs(limit_minutes as u64 * 60);
         let now = Instant::now();
         self.live
             .iter()
             .filter(|id| !visible.contains(id))
+            .filter(|id| !self.loading.contains(*id))
             .filter(|id| {
                 self.last_active
                     .get(*id)
@@ -114,6 +149,43 @@ pub fn create_view(
     h: f64,
 ) -> tauri::Result<Webview<Wry>> {
     let builder = site_builder(window, view_label(id), id, url)?;
+    // 真实标签才接状态流：加载开始/结束推 tab:status，标题变化推给标签栏。
+    // 账号迁移用的隐藏视图（migration_label）不走这里，不产生杂讯。
+    let app = window.app_handle().clone();
+    let id_owned = id.to_string();
+    let builder = builder
+        .on_page_load({
+            let app = app.clone();
+            let id = id_owned.clone();
+            move |_webview, payload: PageLoadPayload<'_>| {
+                let app = app.clone();
+                let id = id.clone();
+                let loading = matches!(payload.event(), PageLoadEvent::Started);
+                // 同步维护 ViewManager 的 loading 标志，休眠扫描据此豁免正在加载的标签
+                if let Ok(mut mgr) = app.state::<crate::AppState>().views.lock() {
+                    mgr.set_loading(&id, loading);
+                }
+                match payload.event() {
+                    PageLoadEvent::Started => {
+                        let _ = app.emit("tab:status", serde_json::json!({
+                            "id": id, "loading": true, "error": null, "url": payload.url().as_str(),
+                        }));
+                    }
+                    PageLoadEvent::Finished => {
+                        let _ = app.emit("tab:status", serde_json::json!({
+                            "id": id, "loading": false, "error": null, "url": payload.url().as_str(),
+                        }));
+                    }
+                }
+            }
+        })
+        .on_document_title_changed({
+            let app = app.clone();
+            let id = id_owned.clone();
+            move |_webview, title| {
+                let _ = app.emit("tab:status", serde_json::json!({ "id": id, "title": title }));
+            }
+        });
     window.add_child(
         builder,
         LogicalPosition::new(x, y),
@@ -161,7 +233,13 @@ fn site_builder(
     })?;
 
     let app = window.app_handle().clone();
+    // 开发者工具是否启用，严格跟随配置里的 devtools 开关。
+    //
+    // WebView2 的 AreDevToolsEnabled 只能在 webview 创建时固化、运行中改不了，
+    // 所以这里创建时就定死；开关切换由 config_set_devtools 负责重建站点视图。
+    let devtools_enabled = app.state::<crate::AppState>().snapshot().devtools;
     Ok(WebviewBuilder::new(label, WebviewUrl::External(parsed))
+        .devtools(devtools_enabled)
         // 站点页面也要关掉原生拖放处理器，否则「往对话里拖文件上传」是死的。
         //
         // Tauri 默认给每个 webview 装一个接收文件的处理器，而它不只是「接收」：
@@ -194,6 +272,10 @@ fn site_builder(
         .on_new_window(move |url, _features| {
             let scheme = url.scheme();
             if scheme == "http" || scheme == "https" {
+                // 记一笔「刚开过登录弹窗」，休眠扫描据此做宽限，别把正在 OAuth 的标签收掉
+                if let Ok(mut mgr) = app.state::<crate::AppState>().views.lock() {
+                    mgr.note_popup();
+                }
                 NewWindowResponse::Allow
             } else {
                 // mailto: / weixin: / alipays: 之类
@@ -376,20 +458,36 @@ pub fn execute_plan(window: &Window, plan: &LayoutPlan) -> Vec<String> {
     created
 }
 
+/// 取一个站点 webview 当前的 URL，供写回 last_urls 用。
+///
+/// 只认 http(s) 地址——`about:blank`、加载失败页、第三方登录弹窗的地址都不该
+/// 写进去，否则下次点开这个标签会停在错误页上。
+pub fn current_url(window: &Window, id: &str) -> Option<String> {
+    let view = window.get_webview(&view_label(id))?;
+    let url = view.url().ok()?;
+    match url.scheme() {
+        "http" | "https" => Some(url.to_string()),
+        _ => None,
+    }
+}
+
 /// 休眠一个后台标签：真的把 webview 关掉，渲染进程还给系统。
 /// 点回来时 apply_layout 会按上次停留的地址重建。
-pub fn hibernate(window: &Window, mgr: &mut ViewManager, id: &str) -> bool {
+/// 返回休眠前的地址（http 才返回），交给调用方写进 last_urls。
+pub fn hibernate(window: &Window, mgr: &mut ViewManager, id: &str) -> Option<String> {
     let label = view_label(id);
     let Some(view) = window.get_webview(&label) else {
-        return false;
+        return None;
     };
+    // 先取地址再关：关掉之后 url() 就没得问了
+    let last = current_url(window, id);
     if view.close().is_err() {
-        return false;
+        return None;
     }
     mgr.live.remove(id);
     mgr.hibernated.insert(id.to_string());
     mgr.last_active.remove(id);
-    true
+    last
 }
 
 /// 彻底销毁（删服务时用），不打休眠标记。
@@ -398,6 +496,23 @@ pub fn destroy(window: &Window, mgr: &mut ViewManager, id: &str) {
         let _ = view.close();
     }
     mgr.forget(id);
+}
+
+/// 关掉所有还活着的站点 webview、清空 live 集合，让下一次 relayout 全部重建。
+///
+/// 用途：开发者工具开关切换。WebView2 的 AreDevToolsEnabled 只能在 webview
+/// 创建时固化，运行中改不了，所以要「关掉旧的、按新配置建新的」才能让开关
+/// 真正生效。不碰 last_active / last_urls：重建后用户当前页面地址仍在，
+/// 只是重新加载一次而已。
+pub fn rebuild_all_site_views(window: &Window, mgr: &mut ViewManager) {
+    let ids: Vec<String> = mgr.live.iter().cloned().collect();
+    for id in &ids {
+        if let Some(view) = window.get_webview(&view_label(id)) {
+            let _ = view.close();
+        }
+        mgr.live.remove(id);
+        // 保留 hibernated 状态不动：休眠中的视图本来就没在跑，无需重建
+    }
 }
 
 #[cfg(test)]

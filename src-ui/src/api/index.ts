@@ -80,7 +80,7 @@ export const api: AihubApi = {
   equalize: () => send('layout_equalize'),
   focusPane: (id) => send('pane_focus', { id }),
   dragDivider: (index, x) => send('layout_drag', { index, x }),
-  endDrag: (extra) => send('layout_drag_end', extra || {}),
+  endDrag: (extra) => send('layout_drag_end', { index: extra?.index ?? 0, equalize: extra?.equalize ?? false }),
 
   // ---- 服务管理 ----
   addService: (input) => invoke('services_add', { input }),
@@ -92,8 +92,6 @@ export const api: AihubApi = {
   addBuiltin: (id) => invoke('services_add_builtin', { id }),
 
   // ---- 偏好 ----
-  setPreload: (on) => invoke('config_set_preload', { on: Boolean(on) }),
-  getPreload: () => invoke('config_get_preload'),
   setHibernate: (input) => invoke('config_set_hibernate', { input: input || {} }),
   setTheme: (theme) => invoke('config_set_theme', { theme: String(theme || '') }),
   setHotkey: (input) => invoke('config_set_hotkey', { input: input || {} }),
@@ -106,10 +104,6 @@ export const api: AihubApi = {
   openExternal: (url) => send('app_open_external', { url }),
   quit: () => send('app_quit'),
 
-  // ---- 右键菜单 ----
-  openSplitMenu: (point) => invoke('ui_split_menu', { point: point || {} }),
-  openShellMenu: (point) => invoke('ui_shell_menu', { point: point || {} }),
-
   // ---- 登录迁移（保留 asResult 语义：失败返回 {ok:false,error} 而非 reject）----
   exportLogin: (password) => asResult(invoke('login_export', { password: String(password || '') })),
   importLogin: (options) => asResult(invoke('login_import', { options: options || {} })),
@@ -117,10 +111,12 @@ export const api: AihubApi = {
   // ---- 更新 ----
   checkUpdate: () => invoke('update_check'),
   installUpdate: () => invoke('update_install'),
+  onUpdateAvailable: (handler) => on('update:available', handler),
 
   // ---- v4 新增 ----
   setAlwaysOnTop: (on) => invoke('window_set_always_on_top', { on: Boolean(on) }),
   setTabBar: (visible) => invoke('window_set_tab_bar', { visible: Boolean(visible) }),
+  setDevtools: (on) => invoke('config_set_devtools', { on: Boolean(on) }),
   placePane: (id, index) => invoke('layout_place', { id, index }),
   swapPanes: (a, b) => invoke('layout_swap', { a, b }),
   removePane: (index) => invoke('layout_remove_pane', { index }),

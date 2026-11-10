@@ -63,10 +63,15 @@ ChatGPT / Claude / Gemini 都是重前端 SPA，渲染差异无法在应用侧�
 Windows 上反而是收益：WebView2 的 UA 本来就是 Edge，Electron 版
 `stripElectronUA()` 那个 hack 可以删掉，被站点风控的概率更低。
 
-### 5. 两个能力暂时缺失
+### 5. 错误页 / 崩溃兜底缺失
 
-- **登录态导出/导入**：命令还在，但会明确抛错说「尚未迁移」，而不是静默失败
-- **原生右键菜单**：返回 `{ok:false, fallback:'html'}`，前端退回自绘菜单
+Electron 版靠 `did-fail-load` 事件在站点加载失败时弹自定义错误页、崩溃时重建视图。
+Tauri 2.11 的 `PageLoadEvent` 只有 `Started` / `Finished` 两个变体，没有 `Failed`，
+也就是 `did-fail-load` 的等价物不存在——站点加载失败 / 崩溃时应用侧根本收不到信号，
+无法弹错误页或做兜底重建。
+
+这是「能兜住的只剩 HTTP 正常但内容是错误页」这类边界，判定既不可靠、价值又低，
+所以暂不实现。等上游补齐 `PageLoadEvent::Failed` 后再回来补，记在这里作为已知限制。
 
 ## 收益
 

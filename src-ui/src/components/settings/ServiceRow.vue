@@ -5,6 +5,7 @@
 // 常驻编辑态会让每一行看起来都「待保存」，十几个服务叠起来就是一片按钮。
 import { computed, nextTick, ref, watch } from 'vue';
 import type { Service } from '@/api/types';
+import { useAppStore } from '@/stores/app';
 import { useOverlayStore } from '@/stores/overlay';
 import { useToast } from '@/composables/useToast';
 import { api } from '@/api';
@@ -25,6 +26,7 @@ const emit = defineEmits<{
 }>();
 
 const overlayStore = useOverlayStore();
+const appStore = useAppStore();
 const { toast } = useToast();
 
 const iconSrc = computed(() => builtinIcon(props.svc));
@@ -155,7 +157,7 @@ function openDevtools() {
       >
         <button type="button" role="menuitem" @click="edit">编辑名称与网址</button>
         <button type="button" role="menuitem" @click="toggleHidden">{{ svc.hidden ? '放回顶栏' : '从顶栏收起' }}</button>
-        <button type="button" role="menuitem" @click="openDevtools">打开开发者工具</button>
+        <button v-if="appStore.devtools === true" type="button" role="menuitem" @click="openDevtools">打开开发者工具</button>
         <hr />
         <button type="button" role="menuitem" class="danger" @click="remove">删除服务…</button>
       </div>

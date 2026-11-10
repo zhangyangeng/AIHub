@@ -14,6 +14,11 @@ npm run tauri:build    # 出安装包
 第一次要十几分钟（Rust 依赖树全量编译 + LTO），之后有缓存会快很多。
 需要 Rust 工具链和 MSVC Build Tools；`rustup` 装完默认就带。
 
+**本地验证要用 `npm run tauri:build`（或 `npm run tauri:dev`），不要直接 `cargo build`。**
+前端资源是编译期嵌进二进制的，裸 `cargo build --release` 产出的 exe 没有外壳界面
+（打开只有空窗口）；`tauri build` 会先跑 `beforeBuildCommand` 把 `src-ui` 构建出
+`dist` 再一起嵌进去，产物才是能正常运行的完整包。
+
 **更新签名**：如果环境里没有 `TAURI_SIGNING_PRIVATE_KEY`，包照样出得来、也装得上，
 只是不带 `.sig`，自动更新会拒绝它。CI 上这个值从仓库 Secret 取（整份私钥内容粘进去）；
 密钥如果设了密码，再加一个 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。本地手动打包不用管。

@@ -60,12 +60,12 @@ export interface AppState {
   panes: string[];
   weights: number[];
   maxPanes: number;
-  preload: boolean;
   theme: string;
   hotkey: HotkeyConfig;
   version: string;
   alwaysOnTop?: boolean;
   tabBarVisible?: boolean;
+  devtools?: boolean;
   hibernate?: HibernateConfig;
   userData?: string;
   update?: UpdateInfo;
@@ -121,10 +121,10 @@ export interface UpdateProgress {
   phase: 'downloading' | 'closing';
 }
 
-/** 右键菜单点位 */
-export interface MenuPoint {
-  x?: number;
-  y?: number;
+/** 启动自动检查发现的新版本（update:available 事件载荷） */
+export interface UpdateAvailable {
+  version?: string;
+  notes?: string;
 }
 
 /**
@@ -153,7 +153,7 @@ export interface AihubApi {
   equalize: () => void;
   focusPane: (id: string) => void;
   dragDivider: (index: number, x: number) => void;
-  endDrag: (extra?: Record<string, unknown>) => void;
+  endDrag: (extra?: { index?: number; equalize?: boolean }) => void;
 
   // ---- 服务管理 ----
   addService: (input: { name: string; url: string }) => Promise<{ ok: boolean; error?: string; id?: string }>;
@@ -165,8 +165,6 @@ export interface AihubApi {
   addBuiltin: (id: string) => Promise<{ ok: boolean; error?: string }>;
 
   // ---- 偏好 ----
-  setPreload: (on: boolean) => Promise<{ ok: boolean; error?: string; preload?: boolean }>;
-  getPreload: () => Promise<boolean>;
   setHibernate: (input: HibernateConfig) => Promise<{ ok: boolean; error?: string; hibernate?: HibernateConfig }>;
   setTheme: (theme: string) => Promise<{ ok: boolean; error?: string; theme?: string }>;
   setHotkey: (input: Partial<HotkeyConfig>) => Promise<{ ok: boolean; error?: string; hotkey?: HotkeyConfig; registered?: boolean }>;
@@ -179,10 +177,6 @@ export interface AihubApi {
   openExternal: (url: string) => void;
   quit: () => void;
 
-  // ---- 右键菜单 ----
-  openSplitMenu: (point: MenuPoint) => Promise<unknown>;
-  openShellMenu: (point: MenuPoint) => Promise<unknown>;
-
   // ---- 登录迁移 ----
   exportLogin: (password: string) => Promise<LoginExportResult>;
   importLogin: (options: { file?: string; password?: string; dryRun?: boolean }) => Promise<LoginImportResult>;
@@ -194,11 +188,13 @@ export interface AihubApi {
   // ---- v4 新增 ----
   setAlwaysOnTop: (on: boolean) => Promise<{ ok: boolean; error?: string; alwaysOnTop?: boolean }>;
   setTabBar: (visible: boolean) => Promise<{ ok: boolean; error?: string; tabBarVisible?: boolean }>;
+  setDevtools: (on: boolean) => Promise<{ ok: boolean; error?: string; devtools?: boolean }>;
   placePane: (id: string, index: number) => Promise<{ ok: boolean; error?: string }>;
   swapPanes: (a: number, b: number) => Promise<{ ok: boolean; error?: string }>;
   removePane: (index: number) => Promise<{ ok: boolean; error?: string }>;
   getVersion: () => Promise<string>;
   onUpdateProgress: (handler: (progress: UpdateProgress) => void) => () => void;
+  onUpdateAvailable: (handler: (info: UpdateAvailable) => void) => () => void;
 }
 
 /** 全局类型声明：window.api 和 window.AIHUB_ICONS */

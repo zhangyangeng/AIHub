@@ -79,7 +79,6 @@ pub fn state_payload(app: &AppHandle, config: &Config) -> serde_json::Value {
         "panes": config.panes,
         "weights": config.weights,
         "maxPanes": MAX_PANES,
-        "preload": config.preload,
         "hibernate": {
             "enabled": config.hibernate.enabled,
             "minutes": config.hibernate.minutes,
@@ -90,6 +89,7 @@ pub fn state_payload(app: &AppHandle, config: &Config) -> serde_json::Value {
         // v4 新增
         "alwaysOnTop": config.always_on_top,
         "tabBarVisible": config.tab_bar_visible,
+        "devtools": config.devtools,
         "version": app.package_info().version.to_string(),
         "platform": std::env::consts::OS,
     })
@@ -120,9 +120,19 @@ pub fn app_quit(app: AppHandle) {
 
 #[tauri::command]
 pub fn tab_activate(app: AppHandle, id: String) {
+    // 切换前先记住当前这一栏停在哪一页，切走再切回来才回得到原来的对话。
+    // 必须在拿配置锁之前取：url() 不需要锁，但也不该在持锁时去问窗口。
+    let leaving = app.state::<AppState>().snapshot().active_id.clone();
+    let leaving_url = app
+        .get_window(views::MAIN_WINDOW)
+        .and_then(|w| views::current_url(&w, &leaving));
+
     mutate(&app, |cfg| {
         if cfg.get_service(&id).is_none() {
             return;
+        }
+        if let Some(url) = leaving_url {
+            cfg.last_urls.insert(leaving, url);
         }
         cfg.active_id = id.clone();
         if !cfg.panes.contains(&id) {
@@ -192,18 +202,16 @@ pub fn tab_home(app: AppHandle, id: Option<String>) {
 
 #[tauri::command]
 pub fn tab_devtools(app: AppHandle, id: Option<String>) {
-    #[cfg(debug_assertions)]
-    {
-        let id = resolve_tab_id(&app, id);
-        if let Some(window) = app.get_window(MAIN_WINDOW) {
-            if let Some(view) = window.get_webview(&view_label(&id)) {
-                view.open_devtools();
-            }
-        }
+    // 开发者工具不再锁死 debug 构建：release 版里站点出问题（白屏/报错）最需要看
+    // console，却恰恰复现不了。改由配置里的 devtools 开关决定，默认关闭。
+    if !app.state::<AppState>().snapshot().devtools {
+        return;
     }
-    #[cfg(not(debug_assertions))]
-    {
-        let _ = (app, id);
+    let id = resolve_tab_id(&app, id);
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        if let Some(view) = window.get_webview(&view_label(&id)) {
+            view.open_devtools();
+        }
     }
 }
 
@@ -393,8 +401,18 @@ pub fn layout_drag(app: AppHandle, index: usize, x: f64) {
 }
 
 #[tauri::command]
-pub fn layout_drag_end(app: AppHandle) {
-    mutate(&app, |_cfg| {});
+pub fn layout_drag_end(app: AppHandle, index: Option<usize>, equalize: Option<bool>) {
+    // 松手时落盘 + 广播；双击分隔条传 equalize=true，把相邻两栏拉回等分。
+    if equalize == Some(true) {
+        mutate(&app, |cfg| {
+            let Some(i) = index else { return };
+            if let Some(next) = layout::equalize_divider(&cfg.weights, i) {
+                cfg.weights = next;
+            }
+        });
+    } else {
+        mutate(&app, |_cfg| {});
+    }
 }
 
 #[tauri::command]
@@ -552,17 +570,6 @@ pub fn services_reorder(app: AppHandle, ids: Vec<String>) -> CmdResult<serde_jso
 // 偏好
 // ---------------------------------------------------------------------------
 
-#[tauri::command]
-pub fn config_set_preload(app: AppHandle, on: bool) -> serde_json::Value {
-    mutate_quiet(&app, |cfg| cfg.preload = on);
-    serde_json::json!({ "ok": true, "preload": on })
-}
-
-#[tauri::command]
-pub fn config_get_preload(app: AppHandle) -> bool {
-    app.state::<AppState>().snapshot().preload
-}
-
 #[derive(Deserialize)]
 pub struct HibernateInput {
     pub enabled: Option<bool>,
@@ -708,6 +715,30 @@ pub fn window_set_tab_bar(app: AppHandle, visible: bool) -> serde_json::Value {
     // 托盘菜单是唯一还能把它放回来的入口，所以这一刻必须保证它存在。
     crate::ensure_tray(&app);
     serde_json::json!({ "ok": true, "tabBarVisible": visible })
+}
+
+// ---------------------------------------------------------------------------
+// 功能：开发者工具开关
+// ---------------------------------------------------------------------------
+
+#[tauri::command]
+pub fn config_set_devtools(app: AppHandle, on: bool) -> serde_json::Value {
+    mutate_quiet(&app, |cfg| cfg.devtools = on);
+
+    // WebView2 的 AreDevToolsEnabled 只能在 webview 创建时固化，运行中改不了。
+    // 所以切开关要「关掉所有站点视图、清空 live」，再触发重排按新配置重建。
+    // close() 会阻塞等主线程，必须放锁之后、走布局线程那套串行通道。
+    let Some(window) = app.get_window(MAIN_WINDOW) else {
+        return serde_json::json!({ "ok": true, "devtools": on });
+    };
+    {
+        let state = app.state::<AppState>();
+        let mut mgr = state.views.lock().expect("views 锁中毒");
+        views::rebuild_all_site_views(&window, &mut mgr);
+    } // <- 放锁
+    request_layout(&app);
+
+    serde_json::json!({ "ok": true, "devtools": on })
 }
 
 /// 托盘菜单用：把标签栏收起 / 放回来。
@@ -978,17 +1009,6 @@ pub async fn login_import(app: AppHandle, options: serde_json::Value) -> CmdResu
         .map_err(|e| format!("导入任务异常退出：{e}"))?
 }
 
-#[tauri::command]
-pub fn ui_split_menu(_point: serde_json::Value) -> CmdResult<serde_json::Value> {
-    // 原生右键菜单待接 Tauri 的 menu API；先让前端退回自绘菜单
-    Ok(serde_json::json!({ "ok": false, "fallback": "html" }))
-}
-
-#[tauri::command]
-pub fn ui_shell_menu(_point: serde_json::Value) -> CmdResult<serde_json::Value> {
-    Ok(serde_json::json!({ "ok": false, "fallback": "html" }))
-}
-
 pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static {
     tauri::generate_handler![
         app_get_state, app_open_external, app_quit, app_version,
@@ -997,7 +1017,7 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         layout_swap, layout_place, layout_remove_pane,
         layout_drag, layout_drag_end, pane_focus,
         services_add, services_update, services_remove, services_set_hidden, services_reorder,
-        config_set_preload, config_get_preload, config_set_hibernate,
+        config_set_hibernate,
         config_set_theme, config_set_hotkey, config_get_hotkey,
         services_available, services_add_builtin,
         #[cfg(debug_assertions)]
@@ -1005,9 +1025,10 @@ pub fn handler() -> impl Fn(tauri::ipc::Invoke) -> bool + Send + Sync + 'static 
         #[cfg(debug_assertions)]
         debug_note,
         window_set_always_on_top, window_set_tab_bar,
+        config_set_devtools,
         window_summon, window_hide, ui_overlay,
         update_check, update_install,
-        login_export, login_import, ui_split_menu, ui_shell_menu,
+        login_export, login_import,
     ]
 }
 

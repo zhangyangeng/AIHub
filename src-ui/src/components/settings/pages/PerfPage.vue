@@ -1,11 +1,10 @@
 <script setup lang="ts">
-// 性能页：后台休眠时长、启动预加载。两项都是「拿内存换体验」的取舍，文案只讲代价。
+// 性能页：后台休眠时长。属于「拿内存换体验」的取舍，文案只讲代价。
 import { computed } from 'vue';
 import { useAppStore } from '@/stores/app';
 import { useToast } from '@/composables/useToast';
 import { api } from '@/api';
 import SettingRow from '@/components/settings/SettingRow.vue';
-import SwitchBox from '@/components/settings/SwitchBox.vue';
 import SelectBox from '@/components/settings/SelectBox.vue';
 
 const appStore = useAppStore();
@@ -34,12 +33,6 @@ async function setNap(value: string) {
   if (!res || !res.ok) return toast((res && res.error) || '设置失败', true);
   appStore.apply({ ...appStore.$state, hibernate: res.hibernate });
 }
-
-async function setPreload(on: boolean) {
-  const res = await api.setPreload(on);
-  if (!res || !res.ok) return toast('设置失败', true);
-  appStore.apply({ ...appStore.$state, preload: Boolean(res.preload) });
-}
 </script>
 
 <template>
@@ -58,17 +51,6 @@ async function setPreload(on: boolean) {
         desc="闲置的后台标签会被卸载以释放内存，点回去重新加载。分屏里正显示着的标签不受影响。"
       >
         <SelectBox :model-value="nap" :options="NAPS" label="后台标签自动休眠" @update:model-value="setNap" />
-      </SettingRow>
-    </div>
-
-    <div class="st-group">
-      <div class="st-group-title">启动</div>
-      <SettingRow title="启动时加载全部标签" desc="标签栏能更快显示各站点自己的标题，代价是启动更慢、内存占用更高。">
-        <SwitchBox
-          :model-value="appStore.preload !== false"
-          label="启动时加载全部标签"
-          @update:model-value="setPreload"
-        />
       </SettingRow>
     </div>
   </div>

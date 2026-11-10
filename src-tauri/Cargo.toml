@@ -16,7 +16,10 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 # multiwebview（一个窗口里挂多个 webview）到今天仍锁在 unstable 后面，
 # 这个 app 的分屏就是靠它，所以必须开。副作用：Tauri 小版本升级可能破 API。
-tauri = { version = "2", features = ["unstable", "tray-icon", "image-png"] }
+# devtools：让 release 构建也能打开站点控制台（debug 构建本来就恒开）。
+# 否则 release 版里 wry 的 open_devtools() 会被 #[cfg(debug_assertions)] 直接编译掉，
+# 用户拿到的安装包里根本没有打开控制台的能力。
+tauri = { version = "2", features = ["unstable", "tray-icon", "image-png", "devtools"] }
 tauri-plugin-opener = "2"
 tauri-plugin-global-shortcut = "2"
 tauri-plugin-dialog = "2"
