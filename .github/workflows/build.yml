@@ -55,7 +55,7 @@ jobs:
 
   macos-arm64:
     name: macOS arm64
-    runs-on: macos-14 # Apple Silicon（M 系列）runner
+    runs-on: macos-15 # Apple Silicon（M 系列）runner
     env:
       # 没配签名证书时不要去找钥匙串，否则打包会在签名那步失败。
       # 以后要做签名 + 公证：把这个删掉，改用 CSC_LINK / CSC_KEY_PASSWORD / APPLE_ID 等 secret。
