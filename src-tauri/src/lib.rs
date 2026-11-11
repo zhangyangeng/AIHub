@@ -19,7 +19,7 @@ pub mod services;
 pub mod topmost;
 pub mod views;
 
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -53,6 +53,33 @@ impl AppState {
     pub fn snapshot(&self) -> Config {
         self.config.lock().expect("config 锁中毒").clone()
     }
+}
+
+/// 正在弹的原生对话框数量。
+///
+/// 为什么要数：macOS 的 NSFilePanel 属于发起它的应用。收起窗口时顺手把激活策略切成
+/// Accessory，弹窗会失去归属——点不动、或者直接消失。所以「收进后台」得先问一句
+/// 现在有没有弹窗，有就先别动 Dock 图标。
+static DIALOG_OPEN: AtomicUsize = AtomicUsize::new(0);
+
+/// 弹原生对话框期间持有的守卫，作用域一结束就把计数还回去。
+pub(crate) struct DialogGuard(());
+
+impl Drop for DialogGuard {
+    fn drop(&mut self) {
+        DIALOG_OPEN.fetch_sub(1, Ordering::SeqCst);
+    }
+}
+
+/// 进原生对话框之前拿它，出了作用域自动还。
+pub(crate) fn dialog_guard() -> DialogGuard {
+    DIALOG_OPEN.fetch_add(1, Ordering::SeqCst);
+    DialogGuard(())
+}
+
+#[cfg(target_os = "macos")]
+fn native_dialog_open() -> bool {
+    DIALOG_OPEN.load(Ordering::SeqCst) > 0
 }
 
 /// Capture only normal window dimensions; OS minimized/zoomed sizes are temporary.
@@ -569,6 +596,15 @@ fn now_ms() -> u64 {
 /// 「唤出时置顶」只在这一下抬，窗口让出前台后由 `schedule_pin_release` 放下。
 pub(crate) fn summon_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_window(MAIN_WINDOW) else { return };
+
+    // 先把 Dock 图标 / 应用菜单栏放回来，再 show。
+    // 顺序反了：窗口在 Accessory 状态下露出来，抢不到键盘焦点，⌘C / ⌘V 这类
+    // 走菜单 key equivalent 的快捷键也会时灵时不灵（见 macos::set_dock_icon）。
+    #[cfg(target_os = "macos")]
+    if app.state::<AppState>().snapshot().hotkey.hide_dock_icon {
+        macos::set_dock_icon(app, true);
+    }
+
     let _ = window.show();
     let _ = window.unminimize();
     let _ = window.set_focus();
@@ -588,6 +624,37 @@ pub(crate) fn summon_window(app: &tauri::AppHandle) {
     request_shortcut_sync(app);
 }
 
+/// 收进后台的完整语义：摘唤出置顶 → 藏窗口 → 收起 Dock 图标（macOS）→ 让出快捷键。
+///
+/// 三个入口（点关闭、老板键、设置里的收起）都必须走这里。以前它们各自调
+/// `window.hide()`，现在多了一步 Dock 图标，散着写漏掉任何一条，就会留下
+/// 「窗口藏了但还占着 Dock」或者「Dock 收起来了但某条路径唤不回」的半截状态。
+pub(crate) fn hide_to_background(app: &tauri::AppHandle) {
+    // 藏起来之前先把唤出置顶摘掉：否则它以最高层躲在后台，
+    // 下次唤出时「这一层是谁加的」就对不上了。
+    release_summon_pin(app, false);
+
+    // 原生文件对话框开着的时候不能动激活策略，否则弹窗会失去归属。
+    #[cfg(target_os = "macos")]
+    let keep_dock = native_dialog_open();
+
+    if let Some(window) = app.get_window(MAIN_WINDOW) {
+        let _ = window.hide();
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        if app.state::<AppState>().snapshot().hotkey.hide_dock_icon && !keep_dock {
+            macos::set_dock_icon(app, false);
+        }
+    }
+
+    // 收起来就不该再占着 Ctrl+,。只入队，真正的注销由工作线程去做——
+    // 这里可能还在快捷键插件的回调栈上（Windows 上就是主线程），
+    // 当场调 unregister 会撞上插件自己持有的注册表锁（见 spawn_shortcut_sync_worker）。
+    request_shortcut_sync(app);
+}
+
 /// 老板键的行为：在前台就收起，不在前台就唤到最前。
 fn toggle_window(app: &tauri::AppHandle) {
     let Some(window) = app.get_window(MAIN_WINDOW) else { return };
@@ -599,13 +666,9 @@ fn toggle_window(app: &tauri::AppHandle) {
     let active = app_is_foreground(app);
 
     if config.hotkey.action == "toggle" && visible && active {
-        // 收起之前先把唤出置顶摘掉：藏起来的窗口还挂着最高层，下次唤出的状态就乱了
-        release_summon_pin(app, false);
-        let _ = window.hide();
-        // 收起来就不该再占着 Ctrl+,。只入队，真正的注销由工作线程去做——
-        // 这里还在快捷键插件的回调栈上（Windows 上就是主线程），
-        // 当场调 unregister 会撞上插件自己持有的注册表锁（见 spawn_shortcut_sync_worker）。
-        request_shortcut_sync(app);
+        // 收起走同一套语义（摘置顶 + hide + 收起 Dock + 让出快捷键），
+        // 别在这里自己调 window.hide()：漏一步就会留下「藏了但还占着 Dock」的半截状态。
+        hide_to_background(app);
         return;
     }
 
@@ -891,6 +954,12 @@ pub fn run() {
                 }
             }
 
+            // 没有 bundle 的时候（tauri dev）系统拿不到应用图标，Dock 会退化成
+            // 可执行文件的通用图标。先挂上内嵌的那张，后面从 Accessory 切回
+            // Regular 时 Dock 重建 tile 才有东西可回落（见 macos::install_app_icon）。
+            #[cfg(target_os = "macos")]
+            macos::install_app_icon(app.handle());
+
             let size = window.inner_size()?;
             let scale = window.scale_factor().unwrap_or(1.0);
             let w = size.width as f64 / scale;
@@ -950,14 +1019,8 @@ pub fn run() {
                     let cfg = resize_handle.state::<AppState>().snapshot();
                     if cfg.hotkey.close_to_tray {
                         api.prevent_close();
-                        // 藏起来之前先摘置顶，否则它会以最高层藏在后台，
-                        // 下次唤出时「这一层是谁加的」就对不上了。
-                        release_summon_pin(&resize_handle, false);
-                        if let Some(w) = resize_handle.get_window(MAIN_WINDOW) {
-                            let _ = w.hide();
-                        }
-                        // 收进托盘就不再占着 Ctrl+, 了，免得在别的应用里抢键
-                        request_shortcut_sync(&resize_handle);
+                        // 藏起来之前先摘置顶、收 Dock，和老板键收起来是同一条路径
+                        hide_to_background(&resize_handle);
                     }
                 }
                 _ => {}

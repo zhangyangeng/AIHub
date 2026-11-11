@@ -6,6 +6,7 @@ import type { HotkeyConfig } from '@/api/types';
 import { useAppStore } from '@/stores/app';
 import { useToast } from '@/composables/useToast';
 import { api } from '@/api';
+import { IS_MAC } from '@/utils/env';
 import SettingRow from '@/components/settings/SettingRow.vue';
 import SwitchBox from '@/components/settings/SwitchBox.vue';
 import SegBox from '@/components/settings/SegBox.vue';
@@ -117,6 +118,19 @@ async function setHotkey(patch: Partial<HotkeyConfig>) {
           :model-value="hotkey.closeToTray !== false"
           label="关闭窗口时收进后台"
           @update:model-value="(v) => setHotkey({ closeToTray: v })"
+        />
+      </SettingRow>
+      <!-- 只有 macOS 有这个概念：窗口隐藏之后 Dock 图标仍会留着。
+           Windows 上 hide() 之后任务栏项本来就消失，不需要这个开关。 -->
+      <SettingRow
+        v-if="IS_MAC"
+        title="收进后台时隐藏 Dock 图标"
+        desc="收起后只在菜单栏留图标，不再占用 Dock。唤出时会自动放回，⌘Tab 和编辑快捷键不受影响。"
+      >
+        <SwitchBox
+          :model-value="hotkey.hideDockIcon !== false"
+          label="收进后台时隐藏 Dock 图标"
+          @update:model-value="(v) => setHotkey({ hideDockIcon: v })"
         />
       </SettingRow>
     </div>
