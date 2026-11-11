@@ -705,10 +705,13 @@ pub struct HotkeyInput {
     #[serde(rename = "closeToTray")]
     pub close_to_tray: Option<bool>,
     pub tray: Option<bool>,
+    #[serde(rename = "hideDockIcon")]
+    pub hide_dock_icon: Option<bool>,
 }
 
 #[tauri::command]
 pub fn config_set_hotkey(app: AppHandle, input: HotkeyInput) -> serde_json::Value {
+    let dock_switch = input.hide_dock_icon;
     mutate_quiet(&app, |cfg| {
         if let Some(v) = input.enabled { cfg.hotkey.enabled = v; }
         if let Some(v) = &input.accelerator {
@@ -720,6 +723,7 @@ pub fn config_set_hotkey(app: AppHandle, input: HotkeyInput) -> serde_json::Valu
         if let Some(v) = input.pin_top { cfg.hotkey.pin_top = v; }
         if let Some(v) = input.close_to_tray { cfg.hotkey.close_to_tray = v; }
         if let Some(v) = input.tray { cfg.hotkey.tray = v; }
+        if let Some(v) = input.hide_dock_icon { cfg.hotkey.hide_dock_icon = v; }
     });
     let cfg = app.state::<AppState>().snapshot();
     // 改完立刻重新注册，否则设置里改了键位却还是老的在生效。
@@ -728,6 +732,21 @@ pub fn config_set_hotkey(app: AppHandle, input: HotkeyInput) -> serde_json::Valu
     // 「点关闭只隐藏」打开之后就只剩托盘能把窗口找回来了，
     // 所以这个开关一动，托盘图标的有无也要跟着动。
     crate::ensure_tray(&app);
+    // 改这个开关的时候窗口正藏在后台：当场把 Dock 图标收放到位。
+    // 不然用户改完看不到任何反应，要等下一次收起才生效，看着像开关坏了。
+    #[cfg(target_os = "macos")]
+    if dock_switch.is_some() {
+        let hidden = app
+            .get_window(MAIN_WINDOW)
+            .map(|w| !w.is_visible().unwrap_or(false))
+            .unwrap_or(false);
+        if hidden {
+            crate::macos::set_dock_icon(&app, cfg.hotkey.hide_dock_icon);
+        }
+    }
+    // 非 macOS 上没有 Dock 这回事，但变量留着会报 unused
+    #[cfg(not(target_os = "macos"))]
+    let _ = dock_switch;
     serde_json::json!({ "ok": error.is_none(), "hotkey": cfg.hotkey, "error": error })
 }
 
@@ -824,14 +843,9 @@ pub fn window_summon(app: AppHandle) {
 
 #[tauri::command]
 pub fn window_hide(app: AppHandle) {
-    // 藏起来之前先摘唤出置顶：否则它以最高层躲在后台，
-    // 下次唤出时「这一层是谁加的」就对不上了
-    crate::release_summon_pin(&app, false);
-    if let Some(window) = app.get_window(MAIN_WINDOW) {
-        let _ = window.hide();
-    }
-    // 收起来就不再占着 Ctrl+, 了
-    crate::request_shortcut_sync(&app);
+    // 摘唤出置顶、藏窗口、收起 Dock、让出快捷键——统一走那一条路径，
+    // 别在这里自己调 window.hide()，否则 mac 上 Dock 图标不会跟着收。
+    crate::hide_to_background(&app);
 }
 
 /// 设置面板开合：打开时所有站点视图让位，外壳整窗露出来。

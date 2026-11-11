@@ -37,6 +37,8 @@ export interface HotkeyConfig {
   pinTop?: boolean;
   tray?: boolean;
   closeToTray?: boolean;
+  /** 收进后台时连 Dock 图标一起收掉（仅 macOS 生效） */
+  hideDockIcon?: boolean;
   registered?: boolean;
   error?: string;
   presets?: { label?: string; accelerator: string; note?: string }[];

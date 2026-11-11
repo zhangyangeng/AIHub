@@ -742,12 +742,16 @@ pub fn export_blocking(app: AppHandle, password: String) -> Result<Value, String
     let path = match preset {
         Some(p) => p,
         None => {
-            let picked = app
-                .dialog()
-                .file()
-                .set_file_name(format!("aihub-login-{stamp}.json"))
-                .add_filter("登录信息", &["json"])
-                .blocking_save_file();
+            let picked = {
+                // 弹窗开着的时候不让「收进后台」去动 Dock 图标：macOS 上这个面板属于
+                // 发起它的应用，激活策略一变它就失去归属（点不动或者直接消失）。
+                let _dialog = crate::dialog_guard();
+                app.dialog()
+                    .file()
+                    .set_file_name(format!("aihub-login-{stamp}.json"))
+                    .add_filter("登录信息", &["json"])
+                    .blocking_save_file()
+            };
             let Some(picked) = picked else {
                 return Ok(json!({ "ok": false, "canceled": true }));
             };
@@ -818,8 +822,12 @@ pub fn import_blocking(app: AppHandle, options: Value) -> Result<Value, String> 
     // 第一次点「导入」时还没有文件，弹选择框；确认那一步会把路径原样带回来
     let given = options.get("file").and_then(Value::as_str).unwrap_or("");
     let path = if given.is_empty() {
-        let Some(p) = app.dialog().file().add_filter("登录信息", &["json"]).blocking_pick_file()
-        else {
+        let picked = {
+            // 同上：弹窗期间不动 Dock 图标
+            let _dialog = crate::dialog_guard();
+            app.dialog().file().add_filter("登录信息", &["json"]).blocking_pick_file()
+        };
+        let Some(p) = picked else {
             return Ok(json!({ "ok": false, "canceled": true }));
         };
         p.into_path().map_err(|e| format!("文件不可用：{e}"))?

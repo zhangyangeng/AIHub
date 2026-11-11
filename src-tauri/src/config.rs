@@ -71,6 +71,13 @@ pub struct HotkeyConfig {
     pub close_to_tray: bool,
     #[serde(default = "default_true")]
     pub tray: bool,
+    /// 收进后台时把 Dock 图标一并收掉（只在 macOS 上有意义）。
+    ///
+    /// 窗口藏着的时候只留菜单栏图标，不再占用 Dock；窗口一唤出就放回去，
+    /// 所以不影响 ⌘Tab 和编辑快捷键。只有 macOS 上「收起来」是个独立状态——
+    /// Windows 上窗口 `hide()` 之后任务栏项本来就没了，不需要额外处理。
+    #[serde(rename = "hideDockIcon", default = "default_true")]
+    pub hide_dock_icon: bool,
 }
 
 fn default_accelerator() -> String {
@@ -90,6 +97,7 @@ impl Default for HotkeyConfig {
             pin_top: true,
             close_to_tray: true,
             tray: true,
+            hide_dock_icon: true,
         }
     }
 }
@@ -370,6 +378,19 @@ mod tests {
         cfg.remember_window_size(420.0, 360.0);
         let loaded: Config = serde_json::from_str(&serde_json::to_string(&cfg).unwrap()).unwrap();
         assert_eq!(loaded.window_size, Some(WindowSize { width: 420.0, height: 360.0 }));
+    }
+
+    /// 老配置里没有 hideDockIcon 这个键。默认必须是「收掉」：升级上来的用户
+    /// 打开就应该看到效果，而不是以为开关坏了。
+    #[test]
+    fn hide_dock_icon_defaults_to_on_and_survives_roundtrip() {
+        let old: Config = serde_json::from_str("{}").unwrap();
+        assert!(old.hotkey.hide_dock_icon, "缺字段时要默认收掉 Dock 图标");
+
+        let mut cfg = Config::default();
+        cfg.hotkey.hide_dock_icon = false;
+        let loaded: Config = serde_json::from_str(&serde_json::to_string(&cfg).unwrap()).unwrap();
+        assert!(!loaded.hotkey.hide_dock_icon, "关掉之后要能存下来、读回来");
     }
 
     #[test]
