@@ -47,7 +47,9 @@
 
 **方式二：从源码跑**
 
-需要 Rust 工具链（`rustup` 装完自带 MSVC 依赖）和 Node 22+：
+需要 Node 22+ 和 Rust 工具链（`rustup` + 平台 C 工具链；Windows 还要单独装 MSVC 生成工具，
+`rustup` 不会代装）。两个平台的准备步骤见 [docs/build.md 环境准备](docs/build.md#1-环境准备)——
+`cargo` 不在 PATH 上时，`tauri dev` 会在第一条命令就失败。
 
 ```bash
 git clone https://github.com/zhangyangeng/AIHub.git

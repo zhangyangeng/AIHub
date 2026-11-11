@@ -1,6 +1,71 @@
 # 打包与发版
 
-## 1. 本机构建
+## 1. 环境准备
+
+只有「从源码构建 / 开发」才需要。用安装包的用户什么都不用装：WebView2 靠系统自带，
+Rust 只在编译期用。
+
+| 依赖 | 用来干什么 | macOS | Windows |
+| --- | --- | --- | --- |
+| Node.js 22+ / npm | 跑 Tauri CLI、构建前端 | 官网安装包或 `brew install node` | 官网安装包或 `winget install OpenJS.NodeJS.LTS` |
+| Rust 工具链（`rustup` → `cargo` / `rustc`） | 编译 `src-tauri/` | rustup 官方脚本 | `winget install Rustlang.Rustup` |
+| C 工具链 | 链接原生代码 | Xcode 命令行工具 | MSVC 生成工具（Build Tools，非 IDE） |
+| WebView2 | 运行时渲染 | 系统自带 WKWebView | Win11 自带；Win10 靠 Edge 铺过 |
+
+装之前跑 `npm run tauri:dev`，会在第一条命令就失败：
+`failed to run 'cargo metadata' ... No such file or directory`。那不是代码问题，是 `cargo` 不在 PATH 上。
+
+### macOS
+
+```bash
+xcode-select --install                    # 只需一次；提示「已安装」就跳过
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+source "$HOME/.cargo/env"                 # 或者直接重开一个终端
+cargo --version                           # 打出带版本号的一行就算成了
+```
+
+### Windows
+
+```powershell
+# 1) MSVC 生成工具。装的是 Build Tools，不是 Visual Studio IDE。
+winget install Microsoft.VisualStudio.2022.BuildTools `
+  --override "--wait --quiet --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+
+# 2) rustup。Windows 上默认 host 就是 x86_64-pc-windows-msvc，不用手选
+winget install Rustlang.Rustup
+
+# 3) 重开一个终端再验证
+cargo --version
+```
+
+`rustup` **不会**代装 MSVC 生成工具，那是独立一步。漏了会在链接阶段报 `link.exe not found`。
+
+### 国内网络
+
+`cargo` 第一次构建要拉四百来个 crate，直连经常卡在下载。两个地方都要指镜像：
+
+```bash
+# 装 rustup 时就指向镜像，否则 rustup 自己那 300 MB 也下不动
+export RUSTUP_DIST_SERVER=https://rsproxy.cn
+export RUSTUP_UPDATE_ROOT=https://rsproxy.cn/rustup
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+```
+
+```toml
+# ~/.cargo/config.toml（Windows 是 %USERPROFILE%\.cargo\config.toml）
+[source.crates-io]
+replace-with = "rsproxy-sparse"
+
+[source.rsproxy-sparse]
+registry = "sparse+https://rsproxy.cn/index/"
+
+[net]
+git-fetch-with-cli = true
+```
+
+换清华 TUNA、中科大源写法一样，只改 URL。这个配置只影响本机下载速度，不进仓库。
+
+## 2. 本机构建
 
 ```powershell
 npm run tauri:build    # 出安装包
@@ -11,8 +76,7 @@ npm run tauri:build    # 出安装包
 - Windows：`nsis\Aihub_x.y.z_x64-setup.exe`，约 2 MB
 - macOS：`dmg\Aihub_x.y.z_aarch64.dmg` 和 `macos\Aihub.app.tar.gz`（后者是更新包）
 
-第一次要十几分钟（Rust 依赖树全量编译 + LTO），之后有缓存会快很多。
-需要 Rust 工具链和 MSVC Build Tools；`rustup` 装完默认就带。
+第一次要十几分钟（Rust 依赖树全量编译 + LTO），之后有缓存会快很多。环境没齐先看第 1 节。
 
 **本地验证要用 `npm run tauri:build`（或 `npm run tauri:dev`），不要直接 `cargo build`。**
 前端资源是编译期嵌进二进制的，裸 `cargo build --release` 产出的 exe 没有外壳界面
@@ -23,7 +87,7 @@ npm run tauri:build    # 出安装包
 只是不带 `.sig`，自动更新会拒绝它。CI 上这个值从仓库 Secret 取（整份私钥内容粘进去）；
 密钥如果设了密码，再加一个 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`。本地手动打包不用管。
 
-## 2. 发版
+## 3. 发版
 
 自动更新认的是 Release 上的 `latest.json`，它是 CI 在推标签时生成的，
 所以发版必须走标签，不能手动传安装包：
@@ -97,7 +161,7 @@ node .github/scripts/make-release-notes.mjs -            # 上一个标签至今
 node .github/scripts/make-release-notes.mjs - 84fe2af    # 指定基准
 ```
 
-## 3. 签名状态
+## 4. 签名状态
 
 两个平台都没有代码签名：
 
@@ -106,7 +170,7 @@ node .github/scripts/make-release-notes.mjs - 84fe2af    # 指定基准
 - macOS：未签名 + 未公证，首次打开会被 Gatekeeper 拦。打包时会补一次 ad-hoc 签名
   （Apple Silicon 上不加签名的 app 根本起不来），但去公证需要 Apple 开发者账号。
 
-## 4. Electron 回退版
+## 5. Electron 回退版
 
 ```powershell
 npm run icons      # 改了 assets/logos 时：重新生成 icons/ 与 icons.js

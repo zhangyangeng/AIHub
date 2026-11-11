@@ -6,7 +6,8 @@
 
 | 现象 | 原因 / 做法 |
 | --- | --- |
-| `npm run tauri:dev` 报找不到 `cargo` / 链接失败 | Rust 工具链或 MSVC Build Tools 没装好，用 `rustup` 装一遍（默认带上 MSVC 依赖） |
+| `npm run tauri:dev` 报 `failed to run 'cargo metadata' ... No such file or directory` | 机器上没有 Rust。装 rustup + 平台 C 工具链，步骤见 [build.md 环境准备](build.md#1-环境准备) |
+| 链接阶段报 `link.exe not found` | Windows 缺 MSVC 生成工具。`rustup` 不会代装，要单独装 Build Tools（「使用 C++ 的桌面开发」），同上 |
 | 外壳空白 / 按钮点了没反应 | 先跑 `npm run test:ui-module`，它能抓到「模块顶层求值就抛错」这类白屏。也确认是用 `tauri:dev` 起的——单独跑 Vite 没有 Rust 命令，按钮自然不会响应 |
 | `npm start` 报 `fetch failed` 或 `Electron failed to install correctly` | 这是 Electron 回退版。二进制没下下来，设 `ELECTRON_MIRROR` 后重跑（见 [README](../README.md) 的回退路径一节） |
 | 改了 `assets/logos` 但标签 logo 没变 | 跑 `npm run icons` 重新生成（会同时刷新根目录和 `src-ui/public/`），再重启应用 |
