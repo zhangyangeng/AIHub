@@ -6,31 +6,40 @@
 
   --bg: #12141a;
   --bar-bg: #1b1e26;
-  --bar-border: #272b36;
+  --bar-border: #2b3140;
   --fg: #e6e9ef;
   --fg-strong: #ffffff;
-  --fg-dim: #98a0b0;
-  --hover: #262a35;
-  --active: #323746;
+  --fg-dim: #9aa3b4;
+  --hover: #2a313d;
+  --active: #333b49;
   --stripe: rgba(255,255,255,.05);
   --badge-bg: rgba(255,255,255,.12);
   --badge-fg: #dfe4ee;
 
-  --panel-bg: #171a22;
-  --card-bg: #13161d;
-  --line: #242938;
-  --input-bg: #101319;
-  --input-border: #2c3242;
-  --chip-bg: #232938;
-  --chip-hover: #2b323f;
-  --code-bg: #1c2029;
+  /* 浮层（设置面板、下拉、对话框）比 --bg 高两档。
+     深色下遮罩会压到近黑，面板若只比背景亮一点点（原来只有 1.1 倍对比度），
+     整块就跟背景糊在一起；抬亮之后面板和内部的分隔线、chip、输入框要一起抬，
+     不然面板一亮，里面的层次反而被抹平。 */
+  --panel-bg: #212630;
+  /* 设置面板左栏：比内容区再低一档，形成「内容抬起、导航下沉」的层次 */
+  --nav-bg: #1a1e27;
+  /* 面板里的只读说明块：比面板略暗，读作「嵌进去的一块」 */
+  --card-bg: #1c212a;
+  --line: #2d3341;
+  --input-bg: #1b1f28;
+  --input-border: #39404f;
+  --chip-bg: #2a3140;
+  --chip-hover: #333b4b;
+  --code-bg: #1b202a;
   --code-fg: #b9c3d6;
-  --scrim: rgba(8, 10, 14, .9);
-  --shadow: rgba(0,0,0,.45);
-  --shadow-strong: rgba(0,0,0,.5);
+  --scrim: rgba(6, 8, 12, .8);
+  --shadow: rgba(0,0,0,.5);
+  --shadow-strong: rgba(0,0,0,.6);
+  /* 面板顶边高光：深色下投影落在黑底上几乎看不见，靠这条亮边交代「浮起来的一层」 */
+  --rim: rgba(255, 255, 255, .07);
 
-  --divider: #2b3040;
-  --divider-hover: #4b5468;
+  --divider: #333a49;
+  --divider-hover: #5b6579;
 
   --danger: #e0526b;
   --danger-bg: #2a1c21;
@@ -46,7 +55,7 @@
   /* 强调色的淡底：选中态导航、浅色徽标、输入框聚焦光晕 */
   --accent-soft: rgba(77, 107, 254, .18);
   /* 开关的关闭态轨道 */
-  --switch-off: #3c4457;
+  --switch-off: #454e62;
 
   /* 动效令牌（曲线来自 easing 规范表，不自己编）：
      - 只动 transform / opacity：跳过布局与重绘，走 GPU 合成。
@@ -77,6 +86,8 @@
 
     /* 面板、卡片、输入框一律纯白：半透明会透出后面的滚动内容，显得脏 */
     --panel-bg: #ffffff;
+    /* 浅色下导航用页面底色、内容区纯白，本来就有层次，不需要额外抬升 */
+    --nav-bg: #f4f5f7;
     --card-bg: #ffffff;
     --line: #e3e6ec;
     --input-bg: #ffffff;
@@ -88,6 +99,8 @@
     --scrim: rgba(24, 28, 36, .45);
     --shadow: rgba(24,28,36,.14);
     --shadow-strong: rgba(24,28,36,.2);
+    /* 白底面板本身已经靠投影分层，不需要再加高光边 */
+    --rim: transparent;
 
     --divider: #d3d8e0;
     --divider-hover: #a8b0bd;
