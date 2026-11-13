@@ -229,17 +229,91 @@ body.dragging-tab .dz.empty.hot {
 }
 #tabs::-webkit-scrollbar { display: none; }
 
+/* 紧凑模式：整条标签栏统一退化成「只显示图标」。
+   触发条件是每个标签分不到 72px（图标 16 + 间隙 + 约 4 个字的量），由 TabBar.vue 判断。
+   为什么必须整条统一、而不是让每个标签自己缩：
+   文字区一旦落到 1~18px 这个区间，省略号放不下，浏览器只会切出半个字形（像「彐」「卜」），
+   看着像渲染坏了。所以要么给足文字宽度，要么干脆不显示文字。 */
+#tabs.compact .tab {
+  /* 32px 只放一个图标，且图标钉在左侧 8px 内边距上（不用居中）：
+     悬停展开时长出来的 24px 全在右边，图标一动不动，视觉上只有 ✕ 冒出来。
+     用 flex-basis 而不是 auto，是为了让标签不被压缩——放不下就横向滚，别把图标挤掉。 */
+  flex: 0 0 auto;
+  width: 32px;
+  min-width: 32px;
+  padding: 0 8px;
+  justify-content: flex-start;
+  transition: width $t-base, color $t-base, background-color $t-base;
+}
+#tabs.compact .tab .name { display: none; }
+/* 紧凑模式的 ✕：默认藏在标签右边界之外（标签只有 32px 宽，放不下它），
+   鼠标进入后标签向右展开 24px，✕ 连同左侧一条分隔线一起露出来。
+   为什么不沿用「✕ 叠在图标上、hover 时顶掉图标」：32px 里两个目标重叠，
+   想切标签的人就会点到关闭，而图标又是紧凑模式里唯一能辨认站点的东西，不该被顶掉。
+   展开后图标区 32px、✕ 区 24px，中间有分隔线，两个目标物理分离，闭眼点也不会错。
+   展开要改 width，会有一次重排——但只发生在鼠标停住的那一个标签上，
+   比「✕ 浮在标签外压住邻居」那种更容易接受：浮层那种点到的可能是邻居的关闭。 */
+#tabs.compact .tab .close {
+  top: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+}
+#tabs.compact .tab .close svg { width: 10px; height: 10px; }
+/* 悬停才展开：图标 32px + ✕ 区 24px。
+   只剩一个标签时没有可关的，data-closable 为 0，展开这一步也省掉，免得白撑一块。 */
+@media (hover: hover) and (pointer: fine) {
+  #tabs.compact .tab[data-closable="1"]:hover { width: 56px; }
+  /* 展开后 ✕ 直接带一块底，而不是靠一条 1px 分隔线：
+     底色比标签的悬浮色亮一档，一眼就是个独立按钮，深色浅色都分得清；
+     分隔线在深色底上只有 8/255 的亮度差，等于没画。 */
+  #tabs.compact .tab[data-closable="1"]:hover .close {
+    opacity: 1;
+    background: var(--badge-bg);
+    color: var(--badge-fg);
+  }
+}
+/* 没有 hover 能力的设备（触屏）没法靠展开露出 ✕，那就一直展开，别让人关不掉页面 */
+@media not all and (hover: hover) {
+  #tabs.compact .tab[data-closable="1"] { width: 56px; }
+  #tabs.compact .tab[data-closable="1"] .close {
+    opacity: 1;
+    background: var(--badge-bg);
+    color: var(--badge-fg);
+  }
+}
+/* 加载圈在 32px 的窄标签里塞不进一行，改成压在图标右下角的小徽标 */
+#tabs.compact .tab .spin {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 7px;
+  height: 7px;
+  border-width: 1.5px;
+}
+/* 主机名在窄窗口里本来就只能露出半截（chat.deepsee…），信息价值不如多放两个站点图标，
+   紧凑模式直接让位。窗口一拉宽就自动回来。 */
+#tabs.compact ~ #host { display: none; }
+
 .tab {
   position: relative;
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 0 0 auto;
+  /* 只收缩不撑开：窗口宽时仍按内容宽度（最多 210px），保持原来的外观；
+     窗口窄时一起变窄、文字缩成省略号，图标靠下面的 min-width 保底不裁。 */
+  flex: 0 1 auto;
   height: 30px;
   max-width: 210px;
-  /* 右边比左边窄：关闭按钮平时看不见但一直占位，
-     这里给它留 4px 就够，不然标签名后面会空出一大块 */
-  padding: 0 6px 0 12px;
+  /* 收缩下限 = 左内边距 12 + 图标 16 + 间隙 6 + 右内边距 20。
+     再窄图标就要被挤出盒子裁掉了，所以到此为止，放不下的部分交给横向滚动。 */
+  min-width: 54px;
+  /* 右边 20px 是 ✕ 的固定槽位（✕ 宽 16 + 右边缘 2 + 2px 间隙）。
+     必须常驻、不能只在内边距上做文章：标签宽是「按内容撑开」的，
+     任何给 .name 加的内边距都会把整个标签一起撑宽，文字照样伸到 ✕ 底下。
+     常驻之后文字在槽位前就被省略号截断，✕ 落在空白上，不再压字。 */
+  padding: 0 20px 0 12px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -262,19 +336,21 @@ body.dragging-tab .dz.empty.hot {
   font-weight: 600;
 }
 .tab.active .name { letter-spacing: .1px; }
-/* 关闭按钮：平时不占视觉，鼠标进标签才出现。
-   用 width 从 0 撑开会让整条标签栏抖，所以位置固定、只切换 opacity。 */
+/* 关闭按钮：平时不可见，鼠标进标签才浮现。
+   用绝对定位贴右边、不参与 flex 布局，这样 ✕ 显不显示都不影响标签宽度，不会跳。
+   它占的位置由 .tab 的右内边距 20px 固定预留（见上面 padding 的说明），
+   文字在进入这块槽位之前就被省略号截断，所以不会出现「✕ 压在字上」。 */
 .tab .close {
-  flex: 0 0 auto;
+  position: absolute;
+  right: 2px;
+  top: 7px;
   display: grid;
   place-items: center;
   width: 16px; height: 16px;
-  /* 负 margin 把 16px 的按钮压成 12px 的占位槽：
-     不能直接 width:0，那样鼠标划过标签栏会整条抖 */
-  margin: 0 -2px 0 -2px;
   border: none;
   border-radius: 4px;
-  background: transparent;
+  /* 跟随标签底色（悬浮/选中会变），这样 ✕ 压在名字末尾时看不出色块接缝 */
+  background: inherit;
   color: inherit;
   font: inherit;
   line-height: 1;
@@ -335,17 +411,23 @@ body.dragging-tab .dz.empty.hot {
   border-radius: 50%;
   flex: 0 0 auto;
   background: var(--dot, var(--accent));
+  transition: opacity $t-fast;
 }
 .tab img.fav {
   width: 16px; height: 16px;
   border-radius: 3px;
   flex: 0 0 auto;
   object-fit: contain;
+  transition: opacity $t-fast;
 }
 /* 内置 logo 不再垫白底（垫了会有个白方块，很难看）。
    「纯黑 / currentColor」的 logo 在深色主题下加载 icons/dark 那套变体，
    「纯白 / 浅灰」的在浅色主题下加载 icons/light 那套，见 tools/build-icons.js。 */
 .tab .name {
+  /* 全标签里只有它会收缩：图标 / 加载圈都是 0 0 auto，绝不被压扁。
+     min-width: 0 是省略号能生效的前提（默认 auto 会让它撑住内容宽度）。 */
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -527,10 +609,21 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
 /* ---------- Toast ---------- */
 #toast {
   position: fixed;
-  left: 50%;
+  /* 居中不能用 left:50% + translateX(-50%)：
+     fixed 定位的元素宽度取 min(内容, 可用)，而 left:50% 时可用宽度只剩
+     「从 left 到视口右缘」，也就是半个屏宽——480 的窗口里 toast 永远只有 240px，
+     max-width 写多大都没用，稍微长一点的提示必然折成两行。
+     改成撑满左右再用 margin:auto 居中，可用宽度才是整个视口。 */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: fit-content;
   bottom: 28px;
-  transform: translateX(-50%) translateY(14px) scale(.97);
-  max-width: 70vw;
+  transform: translateY(14px) scale(.97);
+  /* 别用 70vw：窗口 480 时只剩 336px，一条「已关闭「DeepSeek」的页面」就被挤成两行，
+     而中文没有词边界，断行会落在「页 / 面」中间，看着像排版坏了。
+     改成贴边留 12px，宽窗口再用 520 封顶——宽窗口下短消息本来就按内容宽度收缩，到不了上限。 */
+  max-width: min(calc(100vw - 24px), 520px);
   padding: 10px 16px;
   border-radius: 10px;
   background: var(--chip-bg);
@@ -549,7 +642,7 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
 /* 显示态上的 transition 是「进入」用的：慢一点的、带一点落位感 */
 #toast.show {
   opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
+  transform: translateY(0) scale(1);
   transition:
     opacity $t-base,
     transform $t-drawer;
@@ -560,9 +653,22 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
   display: flex;
   align-items: center;
   gap: 12px;
+  /* 万一消息真的长到放不下，就让按钮整个掉到下一行，别把文字挤成一条窄柱 */
+  flex-wrap: wrap;
+}
+/* pretty 会让浏览器尽量避免「最后一行只剩一个字」这种孤字收尾；
+   旧版 WebView 不认识就直接忽略，没有副作用。 */
+#toast-text {
+  flex: 1 1 auto;
+  /* 6em 是给文字留的下限：真遇到很长的消息，宁可让按钮整个换到第二行，
+     也不要把文字压成一行一个字。 */
+  min-width: 6em;
+  text-wrap: pretty;
 }
 #toast-action {
   flex: none;
+  /* 换行到第二行时靠右对齐；单行时容器是 shrink-to-fit，没有多余空间，等于不起作用 */
+  margin-left: auto;
   height: 26px;
   padding: 0 12px;
   border: 0;
@@ -591,7 +697,8 @@ button.btn:disabled { opacity: .45; cursor: default; transform: none; }
     scroll-behavior: auto !important;
   }
   .panel, #toast, .tab, button.btn { animation: none !important; }
-  #toast, #toast.show { transform: translateX(-50%) !important; transition: opacity var(--dur-2) ease !important; }
+  /* 位移和缩放都去掉；水平居中改由 margin:auto 负责，不再靠 translateX */
+  #toast, #toast.show { transform: none !important; transition: opacity var(--dur-2) ease !important; }
   .tab:active, button.btn:active { transform: none !important; }
   .divider:hover::after, .divider.dragging::after { transform: none !important; }
   /* 新增的投放区和添加面板：位移一律去掉，只保留淡入淡出 */

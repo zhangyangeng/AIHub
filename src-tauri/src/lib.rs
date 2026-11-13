@@ -925,7 +925,7 @@ pub fn run() {
             let window = tauri::window::WindowBuilder::new(app, MAIN_WINDOW)
                 .title("Aihub")
                 .inner_size(window_size.width, window_size.height)
-                .min_inner_size(layout::MIN_SANE_WIDTH as f64, layout::MIN_SANE_HEIGHT as f64)
+                .min_inner_size(layout::MIN_WINDOW_WIDTH as f64, layout::MIN_WINDOW_HEIGHT as f64)
                 .center()
                 // 主题跟着配置走：None = 跟随系统。
                 // 这里给的是「偏好」，外壳 webview 建出来时就会带上它，

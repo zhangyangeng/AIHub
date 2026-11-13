@@ -13,6 +13,19 @@ pub const SPLIT_GAP: i32 = 4; // 两栏之间的缝隙
 pub const DIVIDER_HIT_PAD: i32 = 5; // 拖动热区向两侧外扩
 pub const MIN_PANE_WIDTH: f64 = 260.0; // 单栏最小宽度（拖动下限）
 pub const MAX_PANES: usize = 4; // 最多同时显示几栏
+/// 窗口能缩到的最小尺寸。刻意做成**纵向**（宽 < 高），方便贴在屏幕一侧当侧边栏用。
+///
+/// 480 这个下限是实测出来的，两头卡着：
+///   - 顶栏：工具栏 4 个图标固定约 126px 不收缩，400px 以下标签栏就只剩半个标签；
+///   - 设置面板：左侧导航固定 178px，窗口窄于约 460px 时右侧说明文字会被压成每行一个字。
+/// 高度 680 是为了让 1366×768 的笔记本也能整窗放下（加边框约 719px，仍留出任务栏）。
+///
+/// 注意和下面 MIN_SANE_WIDTH/HEIGHT 的区别：这一对是「用户拖窗口的下限」，
+/// 只是一道闸门，别混用。
+pub const MIN_WINDOW_WIDTH: i32 = 480;
+pub const MIN_WINDOW_HEIGHT: i32 = 680;
+/// 「窗口尺寸是否退化」的判断阈值（最小化时系统会给出极小值）。
+/// 只是跳过布局的闸门，**不是**用户能缩到的尺寸，别再用它当 min_inner_size。
 pub const MIN_SANE_WIDTH: i32 = 200;
 pub const MIN_SANE_HEIGHT: i32 = 150;
 

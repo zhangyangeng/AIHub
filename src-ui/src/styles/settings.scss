@@ -28,6 +28,10 @@
   max-height: 620px;
   display: flex;
   flex-direction: column;
+  /* 让窄窗口导航「侧栏 → 顶栏」的切换以面板自身宽度为准（而不是视口）。
+     面板是整窗浮层，宽窗口它是 880px 居中，窄窗口贴满，所以量面板最准。 */
+  container-type: inline-size;
+  container-name: settings;
   background: var(--panel-bg);
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -122,6 +126,35 @@
   color: var(--fg-dim);
   font-size: 11px;
   opacity: .8;
+}
+
+/* ---------- 窄窗口：导航从侧栏换成顶栏 ----------
+   左栏固定 178px，窗口一窄，右侧内容区就只剩两百来像素，网址和说明文字全被截断。
+   所以面板宽度低于阈值时，把导航竖栏收成一条横排 TAB，给内容区让出宽度。
+   用容器查询量的是 .st-panel 自身，跟视口解耦、也不会跟其它弹层互相干扰。 */
+@container settings (max-width: 560px) {
+  .st-body { flex-direction: column; }
+
+  .st-nav {
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 8px;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .st-nav-item {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 6px;
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
+  /* 顶栏横向空间有限，6 个项都带图标+文字会挤，缩小图标、收紧字距 */
+  .st-nav-item svg { width: 14px; height: 14px; }
+  /* 版本号在窄顶栏里没有固定落脚点，让位 */
+  .st-nav-foot { display: none; }
 }
 
 /* ---------- 右侧内容 ---------- */
