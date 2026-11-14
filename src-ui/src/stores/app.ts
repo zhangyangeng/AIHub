@@ -15,6 +15,8 @@ export const useAppStore = defineStore('app', {
     maxPanes: 4,
     theme: 'system',
     hotkey: {},
+    // 先给个和 Rust 端一致的默认值，免得首帧的显示要等 getState 回来才定下来
+    hibernate: { enabled: true, minutes: 30 },
     version: '',
     alwaysOnTop: true,
     tabBarVisible: true,

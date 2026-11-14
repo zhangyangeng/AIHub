@@ -93,7 +93,8 @@ export const api: AihubApi = {
   addBuiltin: (id) => invoke('services_add_builtin', { id }),
 
   // ---- 偏好 ----
-  setHibernate: (input) => invoke('config_set_hibernate', { input: input || {} }),
+  // 设置类失败要能落到调用方的 toast 上，所以同样用 asResult 包一层
+  setHibernate: (input) => asResult(invoke('config_set_hibernate', { input: input || {} })),
   setTheme: (theme) => invoke('config_set_theme', { theme: String(theme || '') }),
   setHotkey: (input) => invoke('config_set_hotkey', { input: input || {} }),
   getHotkey: () => invoke('config_get_hotkey'),

@@ -31,7 +31,9 @@ async function setNap(value: string) {
   const payload = value === 'off' ? { enabled: false } : { enabled: true, minutes: Number(value) };
   const res = await api.setHibernate(payload);
   if (!res || !res.ok) return toast((res && res.error) || '设置失败', true);
-  appStore.apply({ ...appStore.$state, hibernate: res.hibernate });
+  // 只落地这一项。不要用整份 $state 去 apply：返回体里没带的字段会被冲成 undefined，
+  // 休眠设置一丢，下拉框就退回默认档，看着像「选了没生效」。
+  if (res.hibernate) appStore.hibernate = res.hibernate;
 }
 </script>
 

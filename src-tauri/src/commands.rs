@@ -641,6 +641,18 @@ pub struct HibernateInput {
     pub minutes: Option<u32>,
 }
 
+/// 休眠设置的返回体。
+///
+/// 形状必须和 `state_payload` 里的 `hibernate` 字段一致：前端拿到响应后是按
+/// `res.hibernate` 取用的，平铺成 `enabled` / `minutes` 会取到 undefined，
+/// 设置页的显示就退回默认档，看着像「选项切换没生效」。
+pub fn hibernate_result(cfg: &config::HibernateConfig) -> serde_json::Value {
+    serde_json::json!({
+        "ok": true,
+        "hibernate": { "enabled": cfg.enabled, "minutes": cfg.minutes },
+    })
+}
+
 #[tauri::command]
 pub fn config_set_hibernate(app: AppHandle, input: HibernateInput) -> serde_json::Value {
     mutate_quiet(&app, |cfg| {
@@ -654,7 +666,7 @@ pub fn config_set_hibernate(app: AppHandle, input: HibernateInput) -> serde_json
         }
     });
     let cfg = app.state::<AppState>().snapshot();
-    serde_json::json!({ "ok": true, "enabled": cfg.hibernate.enabled, "minutes": cfg.hibernate.minutes })
+    hibernate_result(&cfg.hibernate)
 }
 
 /// 配置里的主题字符串 -> 原生主题。`system` / 未知值都对应 `None`，即交给系统决定。
@@ -1142,5 +1154,16 @@ mod tests {
     fn replace_slot_is_none_when_focus_is_gone() {
         let panes = vec!["a".to_string(), "b".to_string()];
         assert_eq!(replace_slot(&panes, "c"), None);
+    }
+
+    #[test]
+    fn hibernate_result_keeps_the_nested_shape() {
+        // 前端读的是 res.hibernate.enabled / .minutes，少一层嵌套就取不到值，
+        // 设置页会一直显示默认档——这就是「切换不生效」的那个 bug。
+        let cfg = config::HibernateConfig { enabled: false, minutes: 15 };
+        let out = hibernate_result(&cfg);
+        assert_eq!(out["ok"], true);
+        assert_eq!(out["hibernate"]["enabled"], false);
+        assert_eq!(out["hibernate"]["minutes"], 15);
     }
 }
