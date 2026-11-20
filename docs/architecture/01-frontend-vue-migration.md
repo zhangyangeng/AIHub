@@ -22,7 +22,7 @@ Rust 端用 `include_str!("../../src-ui/challenge-guard.js")` 在**编译期**�
 | `icons.js` | 运行时数据（window.AIHUB_ICONS） | 原样保留，作为静态脚本引入 |
 | `icons/`（119 个图标） | 被 icons.js 相对路径引用 | 放 public/，构建时拷贝到 dist |
 | `build/icon.png` | 品牌图标 | 放 public/，构建时拷贝 |
-| `error.html` | 站点加载失败页 | 放 public/，构建时拷贝 |
+| `error.html` | 站点加载失败页 | 放 public/，构建时拷贝（Tauri 无 `did-fail-load` 等价物，始终未接线，后随 Electron 代码删除，见 [ADR-001 §5](../adr/001-electron-to-tauri.md)） |
 | `index.html` | 外壳 UI | **重构为 Vue 工程入口** |
 
 ### 为什么要重构

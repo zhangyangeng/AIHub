@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 # 只跑不依赖网络的检查：语法、图标素材是否和图标表对得上。
-# 完整的功能自检（tools/smoke.js，会真的打开窗口加载各家站点）留在本地跑，见 README。
+# 会真的打开窗口、加载各家站点的功能自检留在本地跑，见 README。
 jobs:
   checks:
     runs-on: windows-latest
@@ -38,7 +38,7 @@ jobs:
           npm ci
           npm --prefix src-ui ci
 
-      - name: 语法检查（Electron 入口，保留作回退路径）
+      - name: 语法检查（tools 里的脚本）
         run: npm run lint
 
       # Tauri 版的前端：IPC 命令名契约 + 类型检查 + 打包。

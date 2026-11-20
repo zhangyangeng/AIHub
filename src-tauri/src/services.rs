@@ -1,6 +1,6 @@
 //! 服务（AI 站点）定义与内置列表迁移。
 //!
-//! 与 Electron 版 main.js 的 DEFAULT_SERVICES / SERVICES_VERSION 保持同源：
+//! 与迁移前 Electron 实现的 DEFAULT_SERVICES / SERVICES_VERSION 保持同源：
 //! 同一份 config.json 两边都要能读，所以字段名一个都不能改。
 
 use serde::{Deserialize, Serialize};

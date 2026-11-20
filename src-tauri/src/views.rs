@@ -1,6 +1,6 @@
 //! 站点 webview 的生命周期：创建、摆位、休眠、回收。
 //!
-//! 对应 Electron 版 main.js 里的 ensureView / layout / hibernate 那一套。
+//! 对应迁移前 Electron 实现里的 ensureView / layout / hibernate 那一套。
 //!
 //! ## 两条必须守住的纪律
 //!
