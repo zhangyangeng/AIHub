@@ -128,7 +128,7 @@ npm run bump patch    # 或 node tools/bump-version.mjs 0.6.0
 | 文件 | 谁在用 | 改漏的后果 |
 | --- | --- | --- |
 | `src-tauri/tauri.conf.json` | 编译进 exe 的版本，更新器拿它和 `latest.json` 比 | 唯一真正会出问题的：客户端收不到更新，或装完还是旧版本反复提示 |
-| `package.json` / `src-ui/package.json` | npm 元数据、Electron 回退版 | 界面/仓库显示的数字不对，不影响更新 |
+| `package.json` / `src-ui/package.json` | npm 元数据 | 界面/仓库显示的数字不对，不影响更新 |
 | `src-tauri/Cargo.toml` / `Cargo.lock` | crate 版本 | 无 |
 | 两个 `package-lock.json` | npm 自己的记录 | 无 |
 
@@ -170,14 +170,18 @@ node .github/scripts/make-release-notes.mjs - 84fe2af    # 指定基准
 - macOS：未签名 + 未公证，首次打开会被 Gatekeeper 拦。打包时会补一次 ad-hoc 签名
   （Apple Silicon 上不加签名的 app 根本起不来），但去公证需要 Apple 开发者账号。
 
-## 5. Electron 回退版
+## 5. 图标素材
 
 ```powershell
-npm run icons      # 改了 assets/logos 时：重新生成 icons/ 与 icons.js
-npm run dist       # 生成 Windows 一键安装包（会自动先跑 icons + menu-icons）
+npm run icons          # 改了 assets/logos 时：重新生成 src-ui/public/icons/ 与 icons.js
+npm run icon           # 换了品牌 logo 时：重新生成 build/icon.* 与 assets/brand/*
+npm run check:icons    # 只校验产物是否最新，绝不写盘（CI 跑这个）
 ```
 
-产物在 `dist\`，双击即装。想快速验证打包流程可以用 `npm run dist:dir`（只出免安装目录）。
+`src-ui/public/icons/`、`src-ui/public/icons.js`、`build/`、`assets/brand/logo*.png`
+都是生成物，不要手改。`Vite` 只把 `src-ui/public/` 下的东西原样复制进 `dist`，
+所以前端要用的图标必须放在那里，放仓库根目录等于白放。
 
-`icons/`、`icons/dark`、`icons/light`、`icons/menu` 都是生成物，不要手改；
-`tools/build-icons.js` 和 `tools/build-menu-icons.js` 都支持 `--check`，只校验、绝不写盘。
+品牌图（`npm run icon`）纯 Node 实现，不需要额外装东西。源图是
+`assets/brand/logo-source.png`（设计稿原图，不进仓库）；没有源图时会直接跳过、退出码 0，
+所以克隆下来不跑这一步是正常的——已提交的图标就是最终产物。

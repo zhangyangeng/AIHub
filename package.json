@@ -4,7 +4,6 @@
   "version": "0.5.5",
   "private": true,
   "description": "把常用的 AI 聊天网站聚合到一个窗口里：多标签 + 拖拽分屏，每个站点独立数据目录，登录态互不干扰。Windows / macOS 桌面客户端（Tauri）",
-  "main": "main.js",
   "author": "Aihub contributors",
   "license": "MIT",
   "repository": {
@@ -17,7 +16,6 @@
   },
   "keywords": [
     "tauri",
-    "electron",
     "ai",
     "chatgpt",
     "deepseek",
@@ -29,18 +27,10 @@
     "desktop"
   ],
   "scripts": {
-    "start": "electron .",
-    "smoke": "electron .",
-    "icon": "electron tools/make-icon.js",
     "icons": "node tools/build-icons.js",
-    "menu-icons": "electron tools/build-menu-icons.js",
-    "check:icons": "node tools/build-icons.js --check && electron tools/make-icon.js --check && node tools/build-menu-icons.js --check",
-    "check:package": "node tools/check-package.js",
-    "lint": "node --check main.js && node --check preload.js && node --check tools/smoke.js && node --check tools/build-icons.js && node --check tools/check-package.js && node --check tools/after-pack.js",
-    "dist": "npm run icons && npm run menu-icons && electron-builder --win",
-    "dist:win": "npm run icons && npm run menu-icons && electron-builder --win --x64 --publish never",
-    "dist:mac": "npm run icons && npm run menu-icons && electron-builder --mac --arm64 --publish never",
-    "dist:dir": "npm run icons && npm run menu-icons && electron-builder --win --dir",
+    "icon": "node tools/make-icon.js",
+    "check:icons": "node tools/build-icons.js --check && node tools/make-icon.js --check",
+    "lint": "node --check tools/build-icons.js && node --check tools/make-icon.js && node --check tools/check-ipc-contract.js && node --check tools/check-shell-assets.js && node --check tools/api-result-test.js && node --check tools/ui-module-smoke.js && node --check tools/login-crypto-crosscheck.js && node --check tools/login-migration-selftest.js && node --check tools/tauri-drag-selftest.js && node --check tools/cloudflare-guard-strand-test.js && node --check tools/export-cc-switch-logos.js && node --check tools/alias-hooks.mjs && node --check tools/bump-version.mjs && node --check tools/release.mjs",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
@@ -57,111 +47,6 @@
     "test:ui": "npm run lint:ui && npm run test:ui-module && npm run test:api-result && npm run test:login-crypto && npm run test:cf-guard"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.11.4",
-    "electron": "^44.3.0",
-    "electron-builder": "^26.15.3"
-  },
-  "build": {
-    "appId": "io.github.wrysmile.aihub",
-    "productName": "Aihub",
-    "copyright": "Copyright © 2026",
-    "directories": {
-      "output": "dist",
-      "buildResources": "build"
-    },
-    "files": [
-      "main.js",
-      "preload.js",
-      "index.html",
-      "error.html",
-      "icons.js",
-      "icons/**/*",
-      "build/icon.png",
-      "build/tray.png",
-      "build/tray@2x.png",
-      "build/tray-mac.png",
-      "build/tray-mac@2x.png",
-      "package.json"
-    ],
-    "asar": true,
-    "compression": "normal",
-    "afterPack": "tools/after-pack.js",
-    "win": {
-      "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        }
-      ],
-      "icon": "build/icon.ico",
-      "artifactName": "${productName}-${version}-setup.${ext}"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
-          "arch": [
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "build/icon.png",
-      "category": "public.app-category.productivity",
-      "darkModeSupport": true,
-      "artifactName": "${productName}-${version}-mac-${arch}.${ext}"
-    },
-    "dmg": {
-      "title": "${productName} ${version}",
-      "window": {
-        "width": 540,
-        "height": 380
-      },
-      "iconSize": 128,
-      "contents": [
-        {
-          "x": 140,
-          "y": 190
-        },
-        {
-          "x": 400,
-          "y": 190,
-          "type": "link",
-          "path": "/Applications"
-        }
-      ]
-    },
-    "nsis": {
-      "oneClick": true,
-      "perMachine": false,
-      "allowToChangeInstallationDirectory": false,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Aihub",
-      "deleteAppDataOnUninstall": false
-    },
-    "electronDownload": {
-      "mirror": "https://npmmirror.com/mirrors/electron/"
-    },
-    "publish": [
-      {
-        "provider": "github",
-        "owner": "zhangyangeng",
-        "repo": "AIHub"
-      }
-    ]
-  },
-  "allowScripts": {
-    "electron-winstaller": false
-  },
-  "dependencies": {
-    "electron-updater": "^6.8.9"
+    "@tauri-apps/cli": "^2.11.4"
   }
 }

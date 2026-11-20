@@ -1,12 +1,12 @@
 // 把 assets/logos 里的 logo 打包进应用（供标签栏/设置面板使用），并生成图标索引
 //
 // 用法：node tools/build-icons.js
-//   assets/logos/logos/*        ->  icons/*
-//   assets/logos/manifest.json  ->  icons.js（文件名索引 + 域名索引，供渲染层使用）
+//   assets/logos/logos/*        ->  src-ui/public/icons/*
+//   assets/logos/manifest.json  ->  src-ui/public/icons.js（文件名索引 + 域名索引，供渲染层使用）
 //
-// 两套运行时都要用，所以生成完会同步一份到前端：
-//   - 根目录 icons/ + icons.js：Electron 回退版通过 package.json 的 build.files 打进包
-//   - src-ui/public/icons/ + icons.js：Vite 原样复制进 dist，Tauri 外壳从这里读
+// 只输出到 src-ui/public/：Vite 只把 public/ 下的东西原样复制进 dist，
+// 外壳从 /icons/xxx 加载。仓库根目录不再留一份副本——那是 Electron 版的位置，
+// 现在只有 Tauri 一套运行时。
 //
 // 另外会按需生成两套变体，免得在标签栏上给 logo 垫白底（那样很难看）：
 //   icons/dark/xxx.svg  纯黑 / currentColor 的 logo -> 改白，深色主题下可见
@@ -18,7 +18,9 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const srcDir = path.join(root, 'assets', 'logos', 'logos');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'assets', 'logos', 'manifest.json'), 'utf8'));
-const outDir = path.join(root, 'icons');
+const publicDir = path.join(root, 'src-ui', 'public');
+const outDir = path.join(publicDir, 'icons');
+const outIndex = path.join(publicDir, 'icons.js');
 
 // 浅色主题下，"太浅" 的 logo 换成这个深色；深色主题下黑的换成纯白
 const INK = '#1f2329';
@@ -61,19 +63,14 @@ const ALIASES = {
   deepseek: 'deepseek', 深度求索: 'deepseek',
 };
 
-// --check：不写任何文件，只验证「仓库里的 icons/ 和 icons.js 是否与 manifest 对得上」
+// --check：不写任何文件，只验证「src-ui/public 里的 icons/ 和 icons.js 是否与 manifest 对得上」
 // （防止出现「icons.js 说有 116 个，磁盘上只有 110 个」这种被中途打断的产物）
 const CHECK_ONLY = process.argv.includes('--check');
 
 if (!CHECK_ONLY) {
   fs.mkdirSync(outDir, { recursive: true });
   // 清掉旧文件，避免改名后留下垃圾（注意：--check 绝不能走到这里，否则会把图标全删掉）
-  //
-  // menu/ 要留着：那 232 个托盘/菜单图标是 build-menu-icons.js 出的，
-  // 而那个脚本必须在 Electron 里跑。在这里连它一起删，等于让每次 npm run icons
-  // 都悄悄毁掉一批不属于自己的产物——踩过一次了。
   for (const name of fs.readdirSync(outDir)) {
-    if (name === 'menu') continue;
     fs.rmSync(path.join(outDir, name), { recursive: true, force: true });
   }
 }
@@ -240,66 +237,43 @@ if (CHECK_ONLY) {
   // 期望值 vs 现状：文件齐不齐、icons.js 是不是最新的
   const expected = [...Object.values(files)];
   for (const made of Object.values(variants)) expected.push(...Object.values(made));
-  const missing = expected.filter((rel) => !fs.existsSync(path.join(root, rel)));
-  const onDisk = fs.readFileSync(path.join(root, 'icons.js'), 'utf8');
-  const stale = onDisk.trim() !== body.trim();
+  const missing = expected.filter((rel) => !fs.existsSync(path.join(publicDir, rel)));
+  const stale = !fs.existsSync(outIndex) || fs.readFileSync(outIndex, 'utf8').trim() !== body.trim();
   const leaked = fs.existsSync(path.join(outDir, 'menu'))
     ? expected.filter((rel) => rel.startsWith('icons/menu/'))
     : [];
-  console.log(`图标检查: manifest ${copied} 个 -> icons/，变体 深 ${stats.dark} / 浅 ${stats.light}`);
+  console.log(`图标检查: manifest ${copied} 个 -> src-ui/public/icons/，变体 深 ${stats.dark} / 浅 ${stats.light}`);
   if (missing.length) console.log(`  ✗ 缺文件 ${missing.length} 个：${missing.slice(0, 6).join(' ')}`);
   if (stale) console.log('  ✗ icons.js 与 manifest 不一致（重新跑 npm run icons）');
   if (leaked.length) console.log(`  ✗ 有 ${leaked.length} 个文件混进了 icons/ 顶层`);
 
-  // Tauri 前端目录也得有一份，否则标签栏上全是破图。
-  // 这条是补上一次真实事故：迁移时只搬了 html/js，忘了 icons/ 和 build/icon.png。
-  // 目标是 src-ui/public/——Vite 只把 public/ 下的东西原样复制进 dist，
-  // 放 src-ui/ 根目录等于白搬一场。
-  const uiPublic = path.join(root, 'src-ui', 'public');
-  const uiMissing = fs.existsSync(uiPublic)
-    ? expected
-        .filter((rel) => !fs.existsSync(path.join(uiPublic, rel)))
-        .concat(fs.existsSync(path.join(uiPublic, 'build', 'icon.png')) ? [] : ['build/icon.png'])
-    : [];
-  if (uiMissing.length) {
-    console.log(`  ✗ src-ui/public/ 里缺 ${uiMissing.length} 个：${uiMissing.slice(0, 6).join(' ')}（跑 npm run icons 同步）`);
+  // 设置面板头部的品牌图标走 build/icon.png（make-icon.js 生成后同步过来）
+  const brandMissing = fs.existsSync(path.join(publicDir, 'build', 'icon.png')) ? [] : ['build/icon.png'];
+  if (brandMissing.length) {
+    console.log('  ✗ src-ui/public/ 里缺 build/icon.png（跑 npm run icons 同步）');
   }
 
-  if (!missing.length && !stale && !leaked.length && !uiMissing.length) {
-    console.log('  ✓ icons/、icons.js、src-ui/public/ 都是最新的');
+  if (!missing.length && !stale && !leaked.length && !brandMissing.length) {
+    console.log('  ✓ src-ui/public/ 里的 icons/、icons.js、品牌图都是最新的');
   }
-  process.exit(missing.length || stale || leaked.length || uiMissing.length ? 1 : 0);
+  process.exit(missing.length || stale || leaked.length || brandMissing.length ? 1 : 0);
 }
 
-fs.writeFileSync(path.join(root, 'icons.js'), body, 'utf8');
-
-// Tauri 版的前端根目录是 src-ui/，图标按相对路径 icons/xxx.svg 加载，
-// 所以生成完要同步一份过去——不然标签栏上全是破图占位符。
-// （Electron 版从仓库根加载，用的是根目录那份，两边都得有。）
-syncToFrontend();
+fs.writeFileSync(outIndex, body, 'utf8');
+syncBrandIcon();
 
 console.log('图标文件:', copied, '个 ->', path.relative(root, outDir));
 console.log('主题变体: 深色', stats.dark, '个 / 浅色', stats.light, '个 / 无需变体', stats.skipped, '个');
 console.log('icons.js:', (body.length / 1024).toFixed(1), 'KB，域名映射', Object.keys(HOSTS).length, '条');
 
-/** 把 icons/ 和 icons.js 同步到 Tauri 前端的 public/（Vite 只复制 public/ 进 dist） */
-function syncToFrontend() {
-  const srcUi = path.join(root, 'src-ui');
-  if (!fs.existsSync(srcUi)) return; // 没有 Tauri 那套就算了
-
-  const publicDir = path.join(srcUi, 'public');
-  const uiIcons = path.join(publicDir, 'icons');
-  // 覆盖复制而不是「先删再拷」：图标集合基本只增不减，覆盖就够了，
-  // 而递归删除在某些环境（文件被占用、回收站不可用）会整条命令失败。
-  fs.mkdirSync(uiIcons, { recursive: true });
-  fs.cpSync(outDir, uiIcons, { recursive: true, force: true });
-  fs.copyFileSync(path.join(root, 'icons.js'), path.join(publicDir, 'icons.js'));
-
-  // 设置面板头部的品牌图标走 build/icon.png
+/** 设置面板头部的品牌图标走 build/icon.png，复制一份到前端 public/ */
+function syncBrandIcon() {
   const brand = path.join(root, 'build', 'icon.png');
-  if (fs.existsSync(brand)) {
-    fs.mkdirSync(path.join(publicDir, 'build'), { recursive: true });
-    fs.copyFileSync(brand, path.join(publicDir, 'build', 'icon.png'));
-  }
-  console.log('已同步到 src-ui/public/（Vite 会原样复制进 dist）');
+  if (!fs.existsSync(brand)) return;
+  const dest = path.join(publicDir, 'build', 'icon.png');
+  if (fs.existsSync(dest) && fs.readFileSync(dest).equals(fs.readFileSync(brand))) return;
+
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  fs.copyFileSync(brand, dest);
+  console.log('已同步品牌图到 src-ui/public/build/icon.png');
 }

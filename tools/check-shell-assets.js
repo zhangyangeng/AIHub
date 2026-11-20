@@ -55,6 +55,50 @@ if (hasStylesheet && !hasSource('style-src', "'self'")) {
   failures.push("存在外链样式表，但 CSP 的 style-src 没有 'self'，样式会被拦掉");
 }
 
+// 图标表里登记的每个文件都得真的在 dist 里。
+// public/icons 由 Vite 原样拷贝，一旦目录被清掉或路径写错，标签栏和设置页会静默变成
+// 一排空圆点——本地 dev 正常、打包后才暴露。这条以前由 check-package.js 翻 app.asar 查，
+// Tauri 没有 asar，直接查 dist 就是等价的门禁。
+const iconsTablePath = path.join(dist, 'icons.js');
+let iconCount = 0;
+if (!fs.existsSync(iconsTablePath)) {
+  failures.push('dist/icons.js 不存在（标签栏读不到图标表，全部退化成圆点）');
+} else {
+  const fake = {};
+  try {
+    new Function('window', fs.readFileSync(iconsTablePath, 'utf8'))(fake);
+  } catch (err) {
+    failures.push('dist/icons.js 求值失败：' + err.message);
+  }
+  const table = fake.AIHUB_ICONS;
+  if (!table) {
+    failures.push('dist/icons.js 里没有 AIHUB_ICONS');
+  } else {
+    const iconPaths = new Set();
+    for (const rel of Object.values(table.files || {})) if (rel) iconPaths.add(rel);
+    for (const variant of Object.values(table.variants || {})) {
+      for (const rel of [variant && variant.dark, variant && variant.light]) if (rel) iconPaths.add(rel);
+    }
+    const missingIcons = [...iconPaths].filter(
+      (rel) => !fs.existsSync(path.join(dist, rel.replace(/^\//, ''))),
+    );
+    iconCount = iconPaths.size;
+    if (!iconPaths.size) {
+      failures.push('icons.js 的图标表是空的，manifest 没读到？');
+    } else if (missingIcons.length) {
+      failures.push(
+        `图标表登记了 ${iconPaths.size} 个，其中 ${missingIcons.length} 个不在 dist 里：` +
+          missingIcons.slice(0, 5).join(' ') +
+          '（跑 npm run icons 重新生成）',
+      );
+    }
+  }
+}
+
+if (!hasSource('img-src', "'self'")) {
+  failures.push("CSP 的 img-src 没有 'self'，本地图标会被拦掉");
+}
+
 if (!hasSource('script-src', "'self'")) {
   failures.push("CSP 的 script-src 没有 'self'，打包后的脚本会被拦掉");
 }
@@ -65,4 +109,6 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`[shell-assets] ${local.length} 个本地资源齐全，CSP 放行 self`);
+console.log(
+  `[shell-assets] ${local.length} 个本地资源齐全，${iconCount} 个图标到位，CSP 放行 self`,
+);

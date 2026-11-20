@@ -732,7 +732,7 @@ pub fn export_blocking(app: AppHandle, password: String) -> Result<Value, String
     let stamp = now_stamp();
 
     // 调试期的测试接缝：给了路径就不弹对话框，自检脚本才跑得动。
-    // 和 AIHUB_SELFTEST / AIHUB_LAYOUT_DUMP 一个路子，并且**只在 debug 构建里存在**——
+    // 和 AIHUB_SELFTEST 一个路子，并且**只在 debug 构建里存在**——
     // 发布版里绝不能有「不经用户选择就把登录态写上磁盘」的口子。
     #[cfg(debug_assertions)]
     let preset = std::env::var("AIHUB_LOGIN_EXPORT_TO").ok().map(std::path::PathBuf::from);

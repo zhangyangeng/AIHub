@@ -8,9 +8,9 @@
 - [x] **3. 登录与弹窗边界情况**：OAuth 弹窗、外部协议交给系统、
       权限白名单（麦克风 / 通知 / 剪贴板）、加载失败兜底页、渲染进程崩溃兜底
 - [x] **4. 分屏对比**：可拖拽分隔条调宽度、最多 4 栏、双击均分、栏位与宽度都记住
-- [x] **5. 打包**：`npm run dist`（Electron）/ `npm run tauri:build`（Tauri），一键安装
+- [x] **5. 打包**：`npm run tauri:build`，一键安装
 - [x] **6. 自动更新**：接 GitHub Releases，启动后自动查、下载完提示「立即重启」。
-      Electron 版走 `electron-updater` + `latest.yml`，Tauri 版走 `tauri-plugin-updater` + `latest.json`
+      走 `tauri-plugin-updater` + `latest.json`
 - [x] **7. 登录信息迁移**：一键导出 / 导入各服务登录态（Cookie + 本地存储，可加密）
 - [x] **8. 站点与图标体验**：内置站点扩到 7 个、每个标签自带本地 logo、
       启动时预加载（可关）、老配置自动升级内置站点列表

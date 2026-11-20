@@ -25,10 +25,11 @@ Aihub 本体以 MIT 许可证开源（见 `LICENSE`）。但仓库里有几类**
 本项目自己的名称 "Aihub" 与图形标记属于项目作者，随 MIT 许可证一并提供；
 你在自己的 fork 里可以自由替换成自己的品牌。
 
-## 3. 打包进来的 Electron 运行时
+## 3. 打包进来的第三方运行时
 
-安装包里的 Electron、Chromium 及第三方依赖各自遵循其原许可证（MIT / BSD / Apache-2.0 等），
-详见 `node_modules/<包名>/LICENSE`。`npm run dist` 生成的安装包不含本项目之外的私有代码。
+安装包里没有自带浏览器内核：Windows 用系统内置的 WebView2（Edge/Chromium），
+macOS 用系统的 WKWebView。仓库里的第三方依赖各自遵循其原许可证（MIT / BSD / Apache-2.0 等），
+详见 `node_modules/<包名>/LICENSE`。`npm run tauri:build` 生成的安装包不含本项目之外的私有代码。
 
 ---
 
