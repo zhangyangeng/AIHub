@@ -14,11 +14,13 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'website/**'
       - 'LICENSE'
   pull_request:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      - 'website/**'
       - 'LICENSE'
   workflow_dispatch:
 
