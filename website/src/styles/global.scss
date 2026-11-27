@@ -1,0 +1,13 @@
+// 输出顺序即样式优先级：base 的 reset 在最前，responsive 覆盖在最末。
+// 颜色与尺寸全部集中在 _tokens.scss，改一处全站跟着走。
+@use 'base';
+@use 'nav';
+@use 'hero';
+@use 'sections';
+@use 'showcase';
+@use 'compare';
+@use 'download';
+@use 'changelog';
+@use 'footer';
+@use 'motion';
+@use 'responsive';

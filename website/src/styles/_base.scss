@@ -1,0 +1,245 @@
+@use 'tokens' as *;
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  color-scheme: light; // 锁死，不跟随系统深色（见 DESIGN.md 3.3）
+}
+
+// 选中色分两套：纸色区用深绿低透，深色区用 jade 低透
+::selection {
+  background: rgba(30, 81, 64, 0.15);
+  color: $ink;
+}
+
+.hero,
+.band,
+.foot {
+  ::selection {
+    background: rgba(91, 224, 166, 0.26);
+    color: #fff;
+  }
+}
+
+body {
+  margin: 0;
+  background: $paper;
+  color: $text;
+  font-family: $sans;
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+p {
+  margin: 0;
+}
+
+code {
+  font-family: $mono;
+  font-size: 0.88em;
+  background: rgba(30, 81, 64, 0.07);
+  padding: 0.12em 0.34em;
+  border-radius: 4px;
+  color: #20493c;
+}
+
+// ---------- 布局 ----------
+.wrap {
+  width: 100%;
+  max-width: $wrap;
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+.center {
+  text-align: center;
+}
+
+// ---------- 区块标题 ----------
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  color: $muted;
+  border: 1px solid $line;
+  border-radius: 999px;
+  padding: 5px 13px;
+  background: $card;
+
+  i {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $jade-2;
+    display: block;
+  }
+}
+
+.sec-h {
+  max-width: 600px;
+  margin: 0 auto 56px;
+  text-align: center;
+
+  h2 {
+    font-size: clamp(30px, 3.4vw, 44px);
+    margin: 18px 0 0;
+  }
+
+  p {
+    margin: 16px auto 0;
+    color: $muted;
+    font-size: 16.5px;
+    max-width: 44ch;
+  }
+}
+
+// ---------- 按钮 ----------
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 50px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  transition: transform 0.18s $ease, box-shadow 0.18s, background 0.18s, border-color 0.18s;
+}
+
+.btn-main {
+  background: $jade;
+  color: #06130d;
+  box-shadow: 0 12px 30px -14px rgba(91, 224, 166, 0.7);
+
+  &:hover {
+    background: #6eefb3;
+    transform: translateY(-2px);
+    box-shadow: 0 18px 36px -14px rgba(91, 224, 166, 0.65);
+  }
+
+  .sz {
+    font-family: $mono;
+    font-size: 12px;
+    font-weight: 500;
+    opacity: 0.62;
+    padding-left: 2px;
+  }
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.045);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #dde6e1;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.24);
+    transform: translateY(-2px);
+  }
+}
+
+// ---------- 小标签 ----------
+.tag {
+  font-family: $mono;
+  font-size: 11.5px;
+  color: #3e5c4f;
+  background: #edf3ef;
+  border: 1px solid #dde9e2;
+  border-radius: 6px;
+  padding: 4px 8px;
+  letter-spacing: 0.02em;
+}
+
+.cap {
+  font-size: 12px;
+  color: #8d968f;
+  margin-top: 8px;
+  line-height: 1.6;
+}
+
+// ---------- 按访问者系统切换文案 ----------
+// html[data-os] 由 Base.astro 的同步脚本写入，取值 win / mac / linux / mobile。
+// 三段内容全部写在 HTML 里，这里只决定显示哪一段——所以不需要 JS 改 DOM 文本，
+// 也就没有"先画 Windows 再换成 macOS"的那一下闪烁。
+//
+// 默认（属性缺失、脚本报错、移动端、未知系统）显示 Windows 分支：
+// 它是用户最多的一边，也是页面本来的写法，出错时退化到这个结果最不坏。
+.os-win {
+  display: inline;
+}
+
+.os-mac,
+.os-linux {
+  display: none;
+}
+
+html[data-os='mac'] {
+  .os-win {
+    display: none;
+  }
+
+  .os-mac {
+    display: inline;
+  }
+}
+
+html[data-os='linux'] {
+  .os-win {
+    display: none;
+  }
+
+  .os-linux {
+    display: inline;
+  }
+}
+
+// ---------- 键位按系统分叉 ----------
+// 键帽本身是 flex 容器（两颗键要对齐），而 .os-* 是 inline，
+// 两者写在同一个元素上会互相覆盖，所以键位单独走一套类名。
+// 用属性选择器把优先级抬到容器之上，这样文件引入顺序变了也不会失效。
+.keys {
+  display: flex;
+  align-items: center;
+}
+
+.keys[data-key='mac'] {
+  display: none;
+}
+
+// macOS 默认快捷键是 ⌥ + Space，Windows / Linux 是 Alt + Space
+html[data-os='mac'] {
+  .keys[data-key='win'] {
+    display: none;
+  }
+
+  .keys[data-key='mac'] {
+    display: flex;
+  }
+}

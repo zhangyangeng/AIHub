@@ -1,0 +1,37 @@
+---
+import { repo } from '../data/release';
+---
+
+<footer class="foot">
+  <div class="wrap">
+    <div class="foot-in">
+      <div>
+        <a class="brand" href="/"><img src="/assets/brand/logo-mark.png" alt="" />Aihub</a>
+        <p>开源、免费，代码全在 GitHub 上。不收集你的数据，对话也不经过我们的服务器。</p>
+      </div>
+      <nav>
+        <div>
+          <b>产品</b>
+          <a href="/#how">功能</a>
+          <a href="/#download">下载</a>
+          <a href="/changelog">更新日志</a>
+        </div>
+        <div>
+          <b>项目</b>
+          <a href={repo}>GitHub</a>
+          <a href={`${repo}/releases`}>Releases</a>
+          <a href={`${repo}/issues`}>Issues</a>
+        </div>
+        <div>
+          <b>其他</b>
+          <a href={`${repo}/tree/main/docs`}>文档</a>
+          <a href={`${repo}/blob/main/LICENSE`}>许可证</a>
+        </div>
+      </nav>
+    </div>
+    <div class="foot-base">
+      <span>© 2026 Aihub · MIT License</span>
+      <span>不为任何第三方站点背书</span>
+    </div>
+  </div>
+</footer>

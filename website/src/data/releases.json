@@ -1,0 +1,227 @@
+{
+  "repo": "zhangyangeng/AIHub",
+  "fetchedAt": "2026-11-26T16:44:37.080Z",
+  "releases": [
+    {
+      "version": "0.5.5",
+      "tag": "v0.5.5",
+      "date": "2026-11-14",
+      "url": "https://github.com/zhangyangeng/AIHub/releases/tag/v0.5.5",
+      "compare": "https://github.com/zhangyangeng/AIHub/compare/v0.5.4...v0.5.5",
+      "groups": [
+        {
+          "title": "新功能",
+          "items": [
+            "收进后台时隐藏 Dock 图标"
+          ]
+        },
+        {
+          "title": "修复",
+          "items": [
+            "后台标签自动休眠的选项切换后不生效",
+            "修复窄窗口下的布局问题",
+            "深色下浮层与背景糊在一起",
+            "设置面板重新打开时停在旧分区",
+            "顶栏 ✕ 改回关闭页面，关闭后不再自动打开相邻标签"
+          ]
+        }
+      ],
+      "assets": [
+        {
+          "name": "Aihub.app.tar.gz",
+          "bytes": 5093504,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.5/Aihub.app.tar.gz"
+        },
+        {
+          "name": "Aihub_0.5.5_aarch64.dmg",
+          "bytes": 5677645,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.5/Aihub_0.5.5_aarch64.dmg"
+        },
+        {
+          "name": "Aihub_0.5.5_x64-setup.exe",
+          "bytes": 3864698,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.5/Aihub_0.5.5_x64-setup.exe"
+        }
+      ]
+    },
+    {
+      "version": "0.5.4",
+      "tag": "v0.5.4",
+      "date": "2026-11-10",
+      "url": "https://github.com/zhangyangeng/AIHub/releases/tag/v0.5.4",
+      "compare": "https://github.com/zhangyangeng/AIHub/compare/v0.5.2...v0.5.4",
+      "groups": [
+        {
+          "title": "新功能",
+          "items": [
+            "开发者工具改为配置开关，release 版也能打开站点控制台",
+            "补回迁移时丢失的核心功能：切换标签/休眠前写回当前 URL、双击分隔条均分、标签栏加载转圈与标题更新、启动自动检查更新",
+            "休眠时长给到六档，选择控件换成下拉"
+          ]
+        },
+        {
+          "title": "修复",
+          "items": [
+            "正在加载或 OAuth 登录中的标签不参与休眠回收"
+          ]
+        },
+        {
+          "title": "重构",
+          "items": [
+            "移除无实现的外壳右键菜单空壳",
+            "移除分屏死按钮和预加载假开关"
+          ]
+        },
+        {
+          "title": "样式",
+          "items": [
+            "新增分屏操作说明并统一全局字间距"
+          ]
+        }
+      ],
+      "assets": [
+        {
+          "name": "Aihub.app.tar.gz",
+          "bytes": 5030084,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.4/Aihub.app.tar.gz"
+        },
+        {
+          "name": "Aihub_0.5.4_aarch64.dmg",
+          "bytes": 5614580,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.4/Aihub_0.5.4_aarch64.dmg"
+        },
+        {
+          "name": "Aihub_0.5.4_x64-setup.exe",
+          "bytes": 3856295,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.4/Aihub_0.5.4_x64-setup.exe"
+        }
+      ]
+    },
+    {
+      "version": "0.5.2",
+      "tag": "v0.5.2",
+      "date": "2026-11-05",
+      "url": "https://github.com/zhangyangeng/AIHub/releases/tag/v0.5.2",
+      "compare": "https://github.com/zhangyangeng/AIHub/compare/v0.5.1...v0.5.2",
+      "groups": [
+        {
+          "title": "新功能",
+          "items": [
+            "重做设置面板的信息架构"
+          ]
+        },
+        {
+          "title": "修复",
+          "items": [
+            "Ctrl+, 改成系统级快捷键",
+            "补上 Ctrl+, 打开设置"
+          ]
+        }
+      ],
+      "assets": [
+        {
+          "name": "Aihub.app.tar.gz",
+          "bytes": 5024917,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.2/Aihub.app.tar.gz"
+        },
+        {
+          "name": "Aihub_0.5.2_aarch64.dmg",
+          "bytes": 5605983,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.2/Aihub_0.5.2_aarch64.dmg"
+        },
+        {
+          "name": "Aihub_0.5.2_x64-setup.exe",
+          "bytes": 3847299,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.2/Aihub_0.5.2_x64-setup.exe"
+        }
+      ]
+    },
+    {
+      "version": "0.5.1",
+      "tag": "v0.5.1",
+      "date": "2026-11-04",
+      "url": "https://github.com/zhangyangeng/AIHub/releases/tag/v0.5.1",
+      "compare": "https://github.com/zhangyangeng/AIHub/compare/v0.5.0...v0.5.1",
+      "groups": [
+        {
+          "title": "修复",
+          "items": [
+            "修正打包版样式表被 CSP 拦截"
+          ]
+        }
+      ],
+      "assets": [
+        {
+          "name": "Aihub.app.tar.gz",
+          "bytes": 5010583,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.1/Aihub.app.tar.gz"
+        },
+        {
+          "name": "Aihub_0.5.1_aarch64.dmg",
+          "bytes": 5596278,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.1/Aihub_0.5.1_aarch64.dmg"
+        },
+        {
+          "name": "Aihub_0.5.1_x64-setup.exe",
+          "bytes": 3840543,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.1/Aihub_0.5.1_x64-setup.exe"
+        }
+      ]
+    },
+    {
+      "version": "0.5.0",
+      "tag": "v0.5.0",
+      "date": "2026-11-03",
+      "url": "https://github.com/zhangyangeng/AIHub/releases/tag/v0.5.0",
+      "compare": "https://github.com/zhangyangeng/AIHub/compare/84fe2af...v0.5.0",
+      "groups": [
+        {
+          "title": "新功能",
+          "items": [
+            "加强标签选中态的可辨识度"
+          ]
+        },
+        {
+          "title": "修复",
+          "items": [
+            "修正图标同步目录与失实的快捷键提示",
+            "内置 logo 深浅变体跟随主题变化",
+            "主题切换后深浅配色不生效",
+            "修复外壳页无法加载与按钮失效"
+          ]
+        },
+        {
+          "title": "重构",
+          "items": [
+            "迁移设置面板与偏好设置为组件",
+            "迁移分屏拖拽与分隔条为组件",
+            "重构前端为 Vue 3 工程"
+          ]
+        },
+        {
+          "title": "样式",
+          "items": [
+            "注释改为职责与约束说明"
+          ]
+        }
+      ],
+      "assets": [
+        {
+          "name": "Aihub.app.tar.gz",
+          "bytes": 5010880,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.0/Aihub.app.tar.gz"
+        },
+        {
+          "name": "Aihub_0.5.0_aarch64.dmg",
+          "bytes": 5598256,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.0/Aihub_0.5.0_aarch64.dmg"
+        },
+        {
+          "name": "Aihub_0.5.0_x64-setup.exe",
+          "bytes": 3839387,
+          "url": "https://github.com/zhangyangeng/AIHub/releases/download/v0.5.0/Aihub_0.5.0_x64-setup.exe"
+        }
+      ]
+    }
+  ]
+}

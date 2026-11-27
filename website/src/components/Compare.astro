@@ -1,0 +1,25 @@
+---
+import { release } from '../data/release';
+---
+
+<section class="band" id="compare">
+  <div class="wrap">
+    <div class="sec-h" data-rv>
+      <span class="eyebrow"><i></i>横向对比</span>
+      <h2>和其他做法比</h2>
+      <p>包括你可能正在用的那一种。</p>
+    </div>
+    <table class="tbl" data-rv>
+      <thead>
+        <tr><th></th><th>Aihub</th><th>浏览器开一堆标签</th><th>Electron 套壳客户端</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>安装包</td><td>{release.windows.size}<br /><span class="tbl-note">macOS {release.macos.size}</span></td><td>—</td><td>120 MB 起</td></tr>
+        <tr><td>内存</td><td>闲置自动挂起</td><td>全部常驻</td><td>全部常驻，另带一份 Chromium</td></tr>
+        <tr><td>多账号</td><td>每站点独立目录<br /><span class="tbl-note">Windows 上生效</span></td><td>要开无痕或换浏览器</td><td>通常共用 Cookie</td></tr>
+        <tr><td>并排对比</td><td>最多四格，两格可拖宽</td><td>窗口平铺，手动调</td><td>多数只支持单栏</td></tr>
+        <tr><td>批量提问</td><td>不支持</td><td>不支持</td><td>部分支持</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>

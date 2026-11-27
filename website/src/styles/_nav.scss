@@ -1,0 +1,143 @@
+@use 'tokens' as *;
+
+// 导航是一块固定材质的玻璃：白玻璃 + 深字。滚到哪透哪，全程不换皮。
+//
+// 为什么不跟着底色换深色/浅色：那样必然在明暗交界处"跳"一下，而交界正好
+// 就压在导航身上。改用压亮的白玻璃之后，透上来的底色被统一拉到 133–255
+// 这段亮度，黑字在深色首屏（5.1:1）、纸色正文（17.6:1）、渐隐带中灰
+// （9.7:1）、白卡片（18.3:1）全部过 AA，一套材质走完全程。
+//
+// 0.5 是算出来的下限：0.42 时首屏只剩 3.9:1，黑字开始发虚。
+.nav {
+  position: fixed;
+  inset: 16px 0 auto;
+  z-index: 70;
+  // 不在这里留固定护边。视口比 $wrap 宽时，居中留白由 nav-in 的
+  // max-width + margin auto 自己算，这样它的外框与 .wrap 完全重合；
+  // 外面再套一层 16px，会在 $wrap 到 $wrap+32 这段产生十几像素的错位。
+  // 窄屏护边见 _responsive.scss 的 $wrap 断点。
+  padding: 0;
+
+  &-in {
+    // 与内容区共用同一个容器宽度。原来这里是 1010px，比 .wrap 的 1120 窄，
+    // 于是 logo 比正文左缘右移 43px——大屏上左右空白越大，这条错位越显眼，
+    // 因为屏上没有别的参照线了。
+    //
+    // 为什么对齐"文字"而不是对齐"外壳"：胶囊边缘是软边界（半透明 + 渐变），
+    // 人眼判断不准；文字左缘是一列硬像素，错一格都看得出来。所以外壳与 .wrap
+    // 同宽、左内边距也取同一个 28px，logo 与标题落在同一条竖线上。
+    max-width: $wrap;
+    margin: 0 auto;
+    height: 58px;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    // 左边 28 = .wrap 的 padding，右边留 14：CTA 按钮要贴住胶囊右端，
+    // 那一路没有需要对齐的实体，压到 28 会让按钮离边太远、右端发空。
+    padding: 0 14px 0 28px;
+    border-radius: 999px;
+
+    // 底色用暖白而不是纯白：深色区透出来是暖灰，和整站的暖纸调子同源；
+    // 纯白透出来是中性灰，会显得像塑料。
+    background-color: rgba(252, 251, 246, 0.5);
+    // 顶部高光做成一短段渐变，不再用 1px 的 inset 内阴影。
+    //
+    // 原来那版是「.95 白的 1px 内阴影 + 一道占 58% 高度的向下柔光」，
+    // 叠出来上沿是 rgb(250,251,251) 的纯白硬线、往下 30px 一路掉到 135，
+    // 整条胶囊读起来像一根带描边的灰条——就是用户说的那圈灰线。
+    // 真玻璃的高光只在十几像素内衰减，不是一条线，也不是半个胶囊的渐变。
+    background-image: linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.42),
+      rgba(255, 255, 255, 0.1) 8%,
+      rgba(255, 255, 255, 0) 20%
+    );
+    -webkit-backdrop-filter: blur(24px) saturate(1.3);
+    @supports (backdrop-filter: blur(24px)) {
+      backdrop-filter: blur(24px) saturate(1.3);
+    }
+    // 底边暗线 + 两层落影。上亮下暗才读得出"一片有厚度的玻璃"，
+    // 但亮的那一头必须是渐变的（见上），不能是一根白线。
+    box-shadow:
+      inset 0 -1px 0 rgba(15, 22, 19, 0.07),
+      0 2px 5px -2px rgba(15, 22, 19, 0.07),
+      0 14px 30px -14px rgba(15, 22, 19, 0.26);
+    transition: background-color 0.25s, box-shadow 0.25s;
+  }
+
+  // 滚动时只是变厚一点，不是换色：同一块玻璃，密度和落影各加一档。
+  &.stuck &-in {
+    background-color: rgba(252, 251, 246, 0.58);
+    box-shadow:
+      inset 0 -1px 0 rgba(15, 22, 19, 0.08),
+      0 2px 6px -2px rgba(15, 22, 19, 0.08),
+      0 16px 34px -14px rgba(15, 22, 19, 0.24);
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-left: auto;
+
+    // 链接色跟着玻璃走，不跟背景走。必须够黑：#0f1613 压在最暗的深色区
+    // （透后约 rgb(133,133,128)）是 5.1:1，换成 #16201b 就掉到 4.4:1。
+    a {
+      font-size: 14px;
+      color: $text;
+      transition: color 0.2s;
+
+      &:hover {
+        color: #000;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+    }
+  }
+
+  .btn-nav {
+    height: 38px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 18px;
+    border-radius: 999px;
+    background: $jade;
+    color: #06130d;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+
+    &:hover {
+      background: #6bebaf;
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px -10px rgba(91, 224, 166, 0.6);
+    }
+  }
+}
+
+// 没有 backdrop-filter 时不透光，半透明会掉可读性，退回实心白。
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .nav .nav-in {
+    background: #fff;
+  }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 650;
+  font-size: 15.5px;
+  color: $text;
+  letter-spacing: -0.01em;
+
+  img {
+    width: 22px;
+    height: 22px;
+    object-fit: contain;
+    filter: brightness(0);
+    opacity: 0.82;
+  }
+}

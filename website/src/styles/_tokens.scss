@@ -1,0 +1,41 @@
+// ---------- 设计 token ----------
+// 颜色集中在这里，改一处全站跟着走。
+// 运行时仍需要 CSS 自定义属性的只有两个：--d（进场延迟）、--w（条形宽度），
+// 它们由行内 style 传入，所以留在各自的选择器里，不进这个文件。
+
+$ink: #0b110f;
+$ink-2: #111a16;
+$ink-3: #18231e;
+
+$paper: #f7f5ef;
+$paper-2: #f1eee4;
+$card: #ffffff;
+
+$text: #0f1613;
+// 灰阶两级都提到 AA 之上：原 #6b746f 只有 4.43、#8b948f 只有 2.86，
+// 12px 的日期与分组标题在纸色底上几乎糊成一片。改后 6.06 / 4.83。
+$muted: #565f59;
+$muted-2: #656e69;
+$line: #e4e0d4;
+$line-2: #edeae1;
+
+$brand: #1e5140; // 浅色区强调：链接、按钮文字
+$jade: #5be0a6; // 深色区强调：主按钮、标题第二行
+$jade-2: #38c98c; // 浅色区的小绿点、条形图
+
+$on-dark: #eef3f0;
+$on-dark-2: #93a29b;
+$dark-line: rgba(255, 255, 255, 0.09);
+
+// ---------- 字体 ----------
+$mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+$sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "HarmonyOS Sans SC",
+  "Microsoft YaHei", sans-serif;
+
+// ---------- 布局 ----------
+$wrap: 1120px;
+$r: 16px;
+
+// ---------- 缓动 ----------
+$ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+$ease-soft: cubic-bezier(0.22, 0.8, 0.28, 1);

@@ -1,0 +1,113 @@
+---
+import { release, releaseFiles, repo } from '../data/release';
+
+const { windows, macos, linux } = release;
+const primary = releaseFiles.filter((f) => f.ext === 'primary');
+const more = releaseFiles.filter((f) => f.ext === 'more');
+const macUniversal = /通用版/.test(macos.arch);
+---
+
+<section class="dl" id="download">
+  <div class="wrap">
+    <div class="sec-h" data-rv>
+      <span class="eyebrow"><i></i>下载</span>
+      <h2>装一个，哪家都能用</h2>
+      <p>
+        当前版本 {release.version}，发布于 {release.date}。
+        <span class="os-win">Windows 是主力平台，macOS 有原生包，Linux 暂时没有。</span>
+        <span class="os-mac">macOS 是 Apple Silicon 原生包，登录态与其他平台共用的限制见下。</span>
+        <span class="os-linux">Linux 目前还没出安装包，只能自己构建，说明见下方。</span>
+      </p>
+    </div>
+
+    <div class="dlc-grid" data-rv>
+      <div class="dlc dlc--main" data-os="win">
+        <h3>Windows <span class="dlc-you">你的系统</span></h3>
+        <div class="arch">{windows.arch}{windows.size && ` · ${windows.size}`}</div>
+        <p>安装版，双击安装，会在开始菜单和桌面创建快捷方式。首次运行会被 SmartScreen 拦一次，见下方说明。</p>
+        {windows.available ? (
+          <a class="btn btn-main" href={windows.url}>下载安装包</a>
+        ) : (
+          <p class="dlc-none">这个版本没有 Windows 包</p>
+        )}
+      </div>
+
+      <div class="dlc" data-os="mac">
+        <h3>macOS <span class="dlc-you">你的系统</span></h3>
+        <div class="arch">{macos.arch}{macos.size && ` · ${macos.size}`}</div>
+        <p>
+          {macUniversal
+            ? '同一份 dmg 同时支持 Apple Silicon 与 Intel，不用挑架构。'
+            : 'Apple Silicon 原生包（M1 及以后）。Intel 机器没有现成安装包，要自己从源码构建。'}
+        </p>
+        <p class="dlc-warn">登录态与其他站点共用，同一网站的两个账号会互相顶掉。</p>
+        {macos.available ? (
+          <div class="dlls">
+            <a href={macos.url}>.dmg <span>{macos.size}</span></a>
+          </div>
+        ) : (
+          <p class="dlc-none">这个版本没有 macOS 包</p>
+        )}
+      </div>
+
+      <div class="dlc" data-os="linux">
+        <h3>Linux <span class="dlc-you">你的系统</span></h3>
+        <div class="arch">{linux.arch}{linux.size && ` · ${linux.size}`}</div>
+        {linux.available ? (
+          <>
+            <p>AppImage 免安装，deb 适合 Debian / Ubuntu 系。</p>
+            <div class="dlls">
+              <a href={linux.url}>.{linux.name.slice(linux.name.lastIndexOf('.') + 1)} <span>{linux.size}</span></a>
+            </div>
+          </>
+        ) : (
+          <>
+            <p>Linux 版还没出，暂时只能自己编译——需要装好 webkit2gtk 和 Rust 工具链。</p>
+            <p class="dlc-none">
+              编译步骤写在 <a href={`${repo}/blob/main/docs/build.md`}>docs/build.md</a> 里。
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+
+    <div class="files" data-rv>
+      <div class="files-h"><b>这一版的文件</b><span>v{release.version} · 共 {releaseFiles.length} 个</span></div>
+      {primary.map((f) => (
+        <a class="frow" href={f.url}>
+          <span class="os">{f.os}</span>
+          <span class="fn">{f.name}</span>
+          <span class="fd">{f.desc}</span>
+          <span class="fs">{f.size}</span>
+        </a>
+      ))}
+      {more.length > 0 && (
+        <details class="files-more">
+          <summary>其余文件<span class="cnt">{more.length} 个</span></summary>
+          {more.map((f) => (
+            <a class="frow" href={f.url}>
+              <span class="os">{f.os}</span>
+              <span class="fn">{f.name}</span>
+              <span class="fd">{f.desc}</span>
+              <span class="fs">{f.size}</span>
+            </a>
+          ))}
+        </details>
+      )}
+    </div>
+
+    <div class="caveats" data-rv>
+      <h3>装之前要知道的</h3>
+      <ul>
+        <li><b>没有代码签名</b>安装包没买证书，Windows 首次运行会弹 SmartScreen，点「更多信息 → 仍要运行」。</li>
+        <li><b>macOS 上登录态是共用的</b>所有站点用同一份 cookie 存储，同一个网站的两个账号会互相顶掉。Windows 上每站点是独立目录，是真隔离。macOS 的修法要用一个 14 以上的系统接口，短期内不会有。</li>
+        <li><b>几个快捷键只有提示，还没实现</b><code>Ctrl+Tab</code> 切标签、<code>Ctrl+1~9</code> 直达、页面缩放这几个键按了没反应，刷新请点 ⟳。<code>Ctrl+,</code> 开设置是好的。</li>
+        <li><b>同时最多四格</b>再多的标签进后台，不会同时渲染。四格是田字格排布，不是一排放四个。</li>
+        <li><b>不能批量提问</b>套壳方案突破不了这个边界，除非接各家 API。</li>
+        <li><b>官网改版可能影响显示</b>对方调整布局时，窄栏里可能出现横向滚动条。</li>
+      </ul>
+    </div>
+
+    <p class="cap" data-rv>以前的版本都在 <a href={`${repo}/releases`} style="color:var(--brand);text-decoration:underline">GitHub Releases</a>。</p>
+  </div>
+</section>

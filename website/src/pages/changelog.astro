@@ -1,0 +1,58 @@
+---
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+import SiteFooter from '../components/SiteFooter.astro';
+import ReleaseItem from '../components/ReleaseItem.astro';
+import { changelog, changelogFetchedAt } from '../data/changelog';
+import { release } from '../data/release';
+
+const recent = changelog.slice(0, 2);
+const older = changelog.slice(2);
+const oldest = changelog[changelog.length - 1].date;
+const changes = changelog.reduce((n, r) => n + r.groups.reduce((m, g) => m + g.items.length, 0), 0);
+// 折叠条右边只写首尾：版本一多，逐个列举会撑成一行编号。
+const olderRange = older.length
+  ? older.length === 1
+    ? older[0].version
+    : `${older[0].version} – ${older[older.length - 1].version}`
+  : '';
+
+const title = '更新日志 — Aihub';
+const description = `Aihub 每个版本改了什么。当前 ${release.version}，共 ${changelog.length} 个版本、${changes} 条改动。`;
+---
+
+<Base
+  title={title}
+  description={description}
+  path="/changelog"
+  crumbs={[{ name: '首页', path: '/' }, { name: '更新日志', path: '/changelog' }]}
+>
+  <Nav />
+  <main class="wrap wrap--narrow">
+    <div class="head">
+      <span class="eyebrow"><i></i>更新日志</span>
+      <h1>每个版本改了什么</h1>
+      <p>加了什么、修了什么，都记在这儿。</p>
+      <div class="meta">
+        <span>当前 {release.version}</span>
+        <span>共 {changelog.length} 个版本</span>
+        <span>最早 {oldest}</span>
+        <span>更新于 {changelogFetchedAt ?? '—'}</span>
+      </div>
+    </div>
+
+    <div class="log">
+      {recent.map((r) => <ReleaseItem release={r} />)}
+      {older.length > 0 && (
+        <details class="older">
+          <summary>
+            更早的版本
+            <span class="cnt">{olderRange}</span>
+          </summary>
+          {older.map((r) => <ReleaseItem release={r} />)}
+        </details>
+      )}
+    </div>
+  </main>
+  <SiteFooter />
+</Base>

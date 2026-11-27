@@ -1,0 +1,190 @@
+@use 'tokens' as *;
+
+// 满宽四栏：功能区之后的一个"展开"，让读者看见四栏同时开着是什么样。
+// 窗口用 CSS 画，不用截图——满宽时 CSS 版比压缩过的截图更清楚（DESIGN.md 3.2）。
+.four {
+  padding: 120px 0 0;
+
+  &-stage {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  &-win {
+    background: $card;
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid #dfdacb;
+    box-shadow: 0 46px 90px -62px rgba(20, 26, 22, 0.75),
+      0 16px 34px -26px rgba(20, 26, 22, 0.35);
+  }
+
+  &-tabs {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 46px;
+    padding: 0 14px;
+    background: #f4f2eb;
+    border-bottom: 1px solid #e6e3da;
+    overflow: hidden;
+  }
+
+  // 四格是田字格（左上/右上/左下/右下），不是一排四个。
+  // 用 1px 的 gap + 底色做分隔线，四个格子的边框就不用各写一遍。
+  &-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1px;
+    height: 560px;
+    background: #e6e3da;
+  }
+}
+
+.ft {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: $muted;
+  white-space: nowrap;
+  flex: none;
+
+  img {
+    width: 13px;
+    height: 13px;
+    object-fit: contain;
+    display: block;
+  }
+
+  &.on {
+    background: #fff;
+    color: #121a16;
+    font-weight: 600;
+    box-shadow: 0 1px 3px rgba(20, 26, 22, 0.16), 0 0 0 1px #dcd7ca;
+  }
+
+  &.dim {
+    opacity: 0.5;
+  }
+
+  &-sep {
+    width: 1px;
+    height: 16px;
+    background: #dcd7ca;
+    margin: 0 8px;
+    flex: none;
+  }
+
+  &-note {
+    margin-left: auto;
+    font-family: $mono;
+    font-size: 10.5px;
+    color: #98a29c;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    flex: none;
+  }
+}
+
+.fc {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: #fff;
+
+  &-h {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 38px;
+    padding: 0 14px;
+    flex: none;
+    background: #fcfbf7;
+    border-bottom: 1px solid #f0eee7;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #2a342e;
+
+    img {
+      width: 13px;
+      height: 13px;
+      object-fit: contain;
+      display: block;
+      flex: none;
+    }
+
+    em {
+      font-style: normal;
+      font-family: $mono;
+      font-size: 10px;
+      font-weight: 400;
+      color: #a3aba5;
+      margin-left: auto;
+      letter-spacing: 0.01em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &-b {
+    padding: 14px 13px 10px;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: flex-end;
+
+    .m {
+      font-size: 11.5px;
+      line-height: 1.68;
+      max-width: 100%;
+    }
+
+    .m-u {
+      padding: 7px 10px;
+      border-radius: 9px 9px 3px 9px;
+    }
+  }
+
+  &-c {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0 11px 11px;
+    padding: 7px 7px 7px 11px;
+    border: 1px solid #e6e3da;
+    border-radius: 9px;
+    background: #fff;
+    flex: none;
+
+    span {
+      font-size: 11px;
+      color: #adb5b0;
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    i {
+      width: 21px;
+      height: 21px;
+      border-radius: 6px;
+      background: #edf1ee;
+      display: grid;
+      place-items: center;
+      font-style: normal;
+      color: #717c76;
+      font-size: 11px;
+      flex: none;
+    }
+  }
+}

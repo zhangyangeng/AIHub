@@ -23,6 +23,9 @@ hub-layout.json
 src-tauri/target/
 src-tauri/gen/schemas/
 
+# Astro 的类型缓存，每次 dev/build 自动重新生成
+website/.astro/
+
 # 本地临时目录（开发工具链安装包等，不进仓库）
 .tmp/
 

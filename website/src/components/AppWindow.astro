@@ -1,0 +1,116 @@
+---
+import Msg from './Msg.astro';
+import { heroTabIds, heroPanes, heroFixedPane, siteById } from '../data/sites';
+
+const left = heroPanes.deepseek;
+const leftSite = siteById.deepseek;
+const rightSite = siteById.claude;
+---
+
+<div class="stage">
+  <div class="shot-back"></div>
+  <div class="shot">
+    <div class="shot-tabs" id="tabs">
+      {heroTabIds.map((id, i) => (
+        <span class={`st${i === 0 ? ' on' : ''}`} data-site={id}>
+          <i style={`background:${siteById[id].color}`}></i>
+          {siteById[id].name}
+        </span>
+      ))}
+      <span class="st-add" title="添加站点">+</span>
+      <span class="shot-right">点标签切换 · 拖中缝调宽度</span>
+    </div>
+    <div class="shot-body" id="shotBody">
+      <div class="pane" id="paneL">
+        <div class="pane-head">
+          <i id="paneDot" style={`background:${leftSite.color}`}></i>
+          <span id="paneName">{leftSite.name}</span>
+          <em id="paneUrl">{left.host}</em>
+        </div>
+        <div class="pane-body" id="paneMsgs">
+          <Msg messages={left.messages} />
+        </div>
+        <div class="composer"><span id="composerTip">给 {leftSite.name} 发消息</span><i>↑</i></div>
+      </div>
+      <div class="pane-split" id="splitA" title="拖动调整宽度"></div>
+      <div class="pane">
+        <div class="pane-head">
+          <i style={`background:${rightSite.color}`}></i>
+          <span>Claude</span>
+          <em>{heroFixedPane.host}</em>
+        </div>
+        <div class="pane-body">
+          <Msg messages={heroFixedPane.messages} />
+        </div>
+        <div class="composer"><span>给 Claude 发消息</span><i>↑</i></div>
+      </div>
+    </div>
+  </div>
+  <div class="chip chip-a"><b>5</b> 个站点开着 <span class="sep">·</span> 2 个已挂起 <span class="sep">·</span> 214 MB</div>
+  <div class="chip chip-b">
+    <span class="keys" data-key="win"><kbd>Alt</kbd><kbd>Space</kbd></span>
+    <span class="keys" data-key="mac"><kbd>⌥</kbd><kbd>Space</kbd></span>
+    随时唤出 <span class="sep">·</span> 自身 <b>52 MB</b>
+  </div>
+</div>
+
+<script>
+  import { heroPanes, siteById } from '../data/sites';
+
+  const shotBody = document.getElementById('shotBody');
+  const split = document.getElementById('splitA');
+
+  if (shotBody && split) {
+    let dragging = false;
+    const stop = () => {
+      dragging = false;
+      document.body.style.userSelect = '';
+    };
+
+    split.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      split.setPointerCapture(e.pointerId);
+      document.body.style.userSelect = 'none';
+    });
+    split.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const rect = shotBody.getBoundingClientRect();
+      const p = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0.22), 0.78);
+      shotBody.style.gridTemplateColumns = `${p * 100}% 7px 1fr`;
+    });
+    split.addEventListener('pointerup', stop);
+    split.addEventListener('pointercancel', stop);
+  }
+
+  const tabs = document.getElementById('tabs');
+  const paneName = document.getElementById('paneName');
+  const paneUrl = document.getElementById('paneUrl');
+  const paneMsgs = document.getElementById('paneMsgs');
+  const paneDot = document.getElementById('paneDot');
+  const tip = document.getElementById('composerTip');
+
+  if (tabs && paneName && paneUrl && paneMsgs && paneDot && tip) {
+    tabs.addEventListener('click', (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('.st');
+      const id = el?.dataset.site;
+      if (!id) return;
+
+      const pane = heroPanes[id];
+      const site = siteById[id as keyof typeof siteById];
+      if (!pane || !site) return;
+
+      tabs.querySelectorAll('.st').forEach((t) => t.classList.remove('on'));
+      el.classList.add('on');
+      paneName.textContent = site.name;
+      paneUrl.textContent = pane.host;
+      paneDot.style.background = site.color;
+      tip.textContent = `给 ${site.name} 发消息`;
+      paneMsgs.innerHTML = pane.messages
+        .map((m) => {
+          const cls = m.role === 'tag' ? 'm-tag' : `m ${m.role === 'user' ? 'm-u' : 'm-a'}`;
+          return `<p class="${cls}">${m.html}</p>`;
+        })
+        .join('');
+    });
+  }
+</script>
