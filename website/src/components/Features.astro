@@ -1,0 +1,97 @@
+---
+import { siteById } from '../data/sites';
+
+const duo = ['deepseek', 'claude'].map((id) => siteById[id as 'deepseek']);
+---
+
+<section class="feat">
+  <div class="wrap">
+    <div class="row" data-rv>
+      <div class="row-t">
+        <span class="kick">分屏</span>
+        <h3>最多四格<br />两格能拖宽</h3>
+        <p>开两个站点时左右并排，中间那条竖线可以拖，宽度按像素记住，下次打开还是这样。开到三个、四个就自动排成左一右二和四格田字格，都不用手动摆。</p>
+        <div class="meta">
+          <span class="tag">MAX 4</span>
+          <span class="tag">田字格</span>
+          <span class="tag">各自独立滚动</span>
+        </div>
+      </div>
+      <div class="visual">
+        <div class="panel">
+          <div class="duo">
+            <div class="dcol">
+              <div class="dh"><img src={duo[0].icon} alt="" />{duo[0].name}</div>
+              <p class="dm u">先锁 sites 再查</p>
+              <p class="dm a">入口锁一次就够，别每处都锁</p>
+              <div class="dc">给 DeepSeek 发消息<i>↑</i></div>
+            </div>
+            <span class="dgrip"></span>
+            <div class="dcol">
+              <div class="dh"><img src={duo[1].icon} alt="" />{duo[1].name}</div>
+              <p class="dm u">这里要不要 unwrap</p>
+              <p class="dm a">锁中毒会 panic，返回 <code>Result</code> 更稳</p>
+              <div class="dc">给 Claude 发消息<i>↑</i></div>
+            </div>
+          </div>
+        </div>
+        <div class="cap">两格时中缝可拖；三格是左一右二，四格是田字格。</div>
+      </div>
+    </div>
+
+    <div class="row" data-rv>
+      <div class="row-t">
+        <span class="kick">唤出</span>
+        <h3>
+          <span class="os-win">Alt + Space</span>
+          <span class="os-mac">⌥ + Space</span>
+          <span class="os-linux">Alt + Space</span>
+          <br />在任何程序前面
+        </h3>
+        <p>不管焦点在编辑器、浏览器还是终端，按一下就把窗口调到最前，再按一下收回去。不需要先把别的窗口最小化。这个键在设置里可以改。</p>
+        <div class="meta">
+          <span class="tag">全局热键</span>
+          <span class="tag">不抢焦点</span>
+          <span class="tag">可改键</span>
+        </div>
+      </div>
+      <div class="visual">
+        <div class="panel">
+          <div class="keys2">
+            <div class="ctx-list">
+              <span class="ctx">Photoshop</span>
+              <span class="ctx">VS Code</span>
+              <span class="ctx">全屏视频</span>
+              <span class="ctx">终端</span>
+            </div>
+            <div class="kbd-row keys" data-key="win"><kbd>Alt</kbd><em>+</em><kbd>Space</kbd><em>浮到最前</em></div>
+            <div class="kbd-row keys" data-key="mac"><kbd>⌥</kbd><em>+</em><kbd>Space</kbd><em>浮到最前</em></div>
+          </div>
+        </div>
+        <div class="cap">焦点在哪个程序里都一样，按一下就出来，不需要先切出去。</div>
+      </div>
+    </div>
+
+    <div class="row" data-rv>
+      <div class="row-t">
+        <span class="kick">内存</span>
+        <h3>闲置 30 分钟<br />进程挂起</h3>
+        <p>挂起时页面不销毁，恢复不用重新加载，也不用重新登录。用的是系统自带的 WebView2，不是再打包一份 Chromium。</p>
+        <div class="meta">
+          <span class="tag">Tauri 2</span>
+          <span class="tag">系统 WebView2</span>
+        </div>
+      </div>
+      <div class="visual">
+        <div class="panel">
+          <div class="bars2">
+            <div class="brow"><span>8 个标签全开</span><div class="bar"><i style="width:100%"></i></div><b>1.6 GB</b></div>
+            <div class="brow"><span>闲置 30 分钟后</span><div class="bar"><i style="width:22%"></i></div><b>344 MB</b></div>
+            <div class="brow"><span>Aihub 自身</span><div class="bar"><i class="hot" style="width:3%"></i></div><b>52 MB</b></div>
+          </div>
+        </div>
+        <div class="cap">Windows 11 · 8 个标签 · 均为官方网页端，未做任何页面裁剪。</div>
+      </div>
+    </div>
+  </div>
+</section>

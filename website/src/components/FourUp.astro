@@ -1,0 +1,44 @@
+---
+import Msg from './Msg.astro';
+import { fourUpIds, fourBackdropIds, fourUpPanes, siteById } from '../data/sites';
+---
+
+<section class="four">
+  <div class="wrap">
+    <div class="sec-h" data-rv>
+      <span class="eyebrow"><i></i>四格同屏</span>
+      <h2>同一个问题，四家一起答</h2>
+      <p>开到四个站点时自动排成田字格。四个答案并排摆在眼前，不用切窗口，也不用截图来回比。</p>
+    </div>
+  </div>
+
+  <div class="four-stage" data-rv>
+    <div class="four-win">
+      <div class="four-tabs">
+        {fourUpIds.map((id) => (
+          <span class="ft on"><img src={siteById[id].icon} alt="" />{siteById[id].name}</span>
+        ))}
+        <span class="ft-sep"></span>
+        {fourBackdropIds.map((id) => (
+          <span class="ft dim"><img src={siteById[id].icon} alt="" />{siteById[id].name}</span>
+        ))}
+        <span class="ft-note">8 个标签 · 同时只渲染 4 格</span>
+      </div>
+      <div class="four-cols">
+        {fourUpIds.map((id) => (
+          <div class="fc">
+            <div class="fc-h">
+              <img src={siteById[id].icon} alt="" />
+              <span>{siteById[id].name}</span>
+              <em>{fourUpPanes[id].host}</em>
+            </div>
+            <div class="fc-b">
+              <Msg messages={fourUpPanes[id].messages} />
+            </div>
+            <div class="fc-c"><span>给 {siteById[id].name} 发消息</span><i>↑</i></div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>

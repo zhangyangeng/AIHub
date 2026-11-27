@@ -1,0 +1,247 @@
+@use 'tokens' as *;
+
+.wrap--narrow {
+  max-width: 1000px;
+}
+
+.head {
+  padding: 150px 0 0;
+
+  h1 {
+    font-size: clamp(32px, 4vw, 52px);
+    margin: 20px 0 0;
+  }
+
+  p {
+    margin: 18px 0 0;
+    color: $muted;
+    max-width: 36em;
+    font-size: 16.5px;
+  }
+
+  .meta {
+    margin: 26px 0 0;
+    font-family: $mono;
+    font-size: 12px;
+    color: $muted-2;
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    letter-spacing: 0.02em;
+  }
+}
+
+.log {
+  margin: 56px 0 0;
+  border-top: 1px solid $line;
+}
+
+.rel {
+  display: grid;
+  grid-template-columns: 170px minmax(0, 1fr);
+  gap: 44px;
+  padding: 34px 0 36px;
+  border-bottom: 1px solid $line;
+
+  &-id {
+    // 版本号兼作外链入口。图标默认压到 0.3 的透明度，免得每一行都挂一个显眼的箭头；
+    // 指针移上来时字变绿、图标浮起一像素。
+    .ver {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: $mono;
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: $text;
+      transition: color 0.16s $ease;
+
+      .ext {
+        width: 13px;
+        height: 13px;
+        flex: none;
+        // 用实色而不是半透明：0.5 的透明度在纸色底上只剩 1.7 的对比，
+        // 等于看不见。这里取 4.8 的灰，安静但确实存在。
+        color: $muted-2;
+        // 视觉居中：数字没有下伸部，几何居中会让箭头看着偏高。
+        position: relative;
+        top: 2px;
+        transition: color 0.16s $ease, transform 0.16s $ease;
+      }
+
+      &:hover {
+        color: $brand;
+
+        .ext {
+          color: $brand;
+          transform: translate(1px, -1px);
+        }
+      }
+    }
+
+    time {
+      display: block;
+      font-family: $mono;
+      font-size: 12px;
+      color: $muted-2;
+      margin-top: 4px;
+    }
+
+    // 「当前版本」是页面上唯一该抢眼的小块，用实心深绿。
+    // 绿色在纸色底上做不了文字（1.5 的对比度），只能做面。
+    .tag {
+      display: inline-block;
+      margin-top: 10px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      color: #eef4ef;
+      background: $brand;
+      padding: 3px 8px;
+      border-radius: 5px;
+    }
+  }
+
+  &-body {
+    // 一个版本里可能有好几组（新功能 / 修复 / 重构）。组标题是小标签，
+    // 不抢版本号的位置——读者先看版本，再看这一段改了什么。
+    .grp + .grp {
+      margin-top: 24px;
+    }
+
+    // 组标题原来是 12.5px 的浅灰，和条目一个重量，读起来分不出段。
+    // 改成深墨加粗 + 绿方块：颜色在这里只做"分章"用，不做装饰。
+    h2 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #1a4738;
+      margin: 0 0 13px;
+
+      &::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 2px;
+        background: #1f7f57;
+        flex: none;
+      }
+    }
+
+    ul {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+      max-width: 46em;
+    }
+
+    li {
+      font-size: 14.5px;
+      color: #4a534e;
+      padding-left: 17px;
+      position: relative;
+      line-height: 1.7;
+
+      &::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.72em;
+        width: 6px;
+        height: 1px;
+        background: #b0ab9c;
+      }
+
+      code {
+        font-family: $mono;
+        font-size: 0.92em;
+        background: #f2f0e8;
+        border-radius: 4px;
+        padding: 1px 4px;
+      }
+    }
+  }
+}
+
+// 更早的版本折起来：新访客只关心最近两次。
+// 原生 details，内容在初始 HTML 里，爬虫照常读到。
+// 类名不能叫 .more——下载区的「其余文件」也叫这个，那条规则带 padding 和 hover 白底，
+// 会把这里的展开条染成一条白带。
+.older {
+  border-bottom: 1px solid $line-2;
+
+  > summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    list-style: none;
+    padding: 20px 0;
+    font-size: 14px;
+    color: $brand;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &::before {
+      content: "";
+      flex: none;
+      width: 6px;
+      height: 6px;
+      margin-left: 2px;
+      border-right: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor;
+      transform: rotate(-45deg);
+      transition: transform 0.2s;
+    }
+
+    .cnt {
+      font-family: $mono;
+      font-size: 11px;
+      color: $muted-2;
+      margin-left: auto;
+    }
+  }
+
+  &[open] > summary::before {
+    transform: rotate(45deg);
+  }
+
+  .rel:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .head {
+    padding-top: 126px;
+  }
+
+  .rel {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 26px 0 28px;
+
+    &-id {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      flex-wrap: wrap;
+
+      time {
+        margin-top: 0;
+      }
+
+      .tag {
+        margin-top: 0;
+      }
+    }
+  }
+}

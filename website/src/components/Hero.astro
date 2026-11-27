@@ -1,0 +1,44 @@
+---
+import AppWindow from './AppWindow.astro';
+import { release } from '../data/release';
+---
+
+<section class="hero">
+  <div class="hero-bg">
+    <span class="glow glow-a"></span>
+    <span class="glow glow-b"></span>
+  </div>
+  <div class="hero-fade"></div>
+  <div class="wrap hero-in">
+    <span class="hero-badge">
+      <b>v{release.version}</b><span>·</span>
+      <span class="os-win">开源 · MIT · {release.windows.size}</span>
+      <span class="os-mac">开源 · MIT · {release.macos.size}</span>
+      <span class="os-linux">开源 · MIT · 需自行构建</span>
+    </span>
+    <h1>把多家 AI 的网页端<em>放进一个窗口</em></h1>
+    <p class="sub">标签排在顶部，点一下就切；分屏最多四格——两格左右并排，四格是田字格。<b>加载的就是各家官网本身</b>，用的是你已经登录的账号——它不自带模型，也不代理你的请求。</p>
+    <div class="cta">
+      <!-- 三段文案全都渲染进 HTML，由 html[data-os] 决定显示哪一段。
+           不用 JS 改文本：属性在 head 里同步写入，首次绘制前 CSS 已经选好分支，
+           所以 Windows 用户（默认分支）看不到任何变化，mac 用户也看不到替换过程。 -->
+      <a class="btn btn-main" href="#download">
+        <span class="os-win">下载 Windows 版 <span class="sz">{release.windows.size}</span></span>
+        <span class="os-mac">下载 macOS 版 <span class="sz">{release.macos.size}</span></span>
+        <span class="os-linux">Linux 版需自行构建</span>
+      </a>
+      <a class="btn btn-ghost" href="#download">
+        <span class="os-win">macOS 版</span>
+        <span class="os-mac">Windows 版</span>
+        <span class="os-linux">Windows 与 macOS</span>
+      </a>
+    </div>
+    <p class="fine">
+      <span class="os-win">Windows 10 / 11 · x64 · 无需注册，不联网校验</span>
+      <span class="os-mac">macOS 14+ · Apple Silicon · 无需注册，不联网校验</span>
+      <span class="os-linux">Linux x64 · 暂无安装包 · 源码可自行构建</span>
+    </p>
+  </div>
+
+  <AppWindow />
+</section>

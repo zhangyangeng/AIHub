@@ -86,10 +86,8 @@
 
 内置站点自带本地 logo，不依赖网站把 favicon 传回来。
 
-`tools/build-icons.js` 把 `assets/logos`（来源 cc-switch，MIT）里的图标复制成两套：
-
-- 根目录 `icons/` + `icons.js`：Electron 回退版用（`build.files` 白名单）
-- `src-ui/public/icons/` + `icons.js`：Vite 原样复制进 `dist`，Tauri 外壳用
+`tools/build-icons.js` 把 `assets/logos`（来源 cc-switch，MIT）里的图标复制到
+`src-ui/public/icons/` + `icons.js`，Vite 原样复制进 `dist`，外壳从 `/icons/xxx` 加载。
 
 索引里有三张表：服务 icon 字段 → 文件、域名 → 图标、key 别名。
 

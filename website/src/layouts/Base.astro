@@ -1,0 +1,138 @@
+---
+import '../styles/global.scss';
+import { repo, release } from '../data/release';
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  /** 页面在站点里的位置，供 BreadcrumbList 用。首页不用传。 */
+  crumbs?: { name: string; path: string }[];
+}
+
+const { title, description, path, crumbs } = Astro.props;
+// 产物是 changelog/index.html，线上地址带结尾斜杠（GitHub Pages 会把不带斜杠的 301 过去）。
+// canonical 和 sitemap 必须写成同一个地址，否则等于自己声明了两个 URL。
+const canonical = new URL(path === '/' ? '/' : `${path.replace(/\/$/, '')}/`, Astro.site).href;
+const ogImage = new URL('/og.png', Astro.site).href;
+const ogAlt = 'Aihub — 把多家 AI 的网页端放进一个窗口';
+const isHome = path === '/';
+
+const site = { '@type': 'WebSite', name: 'Aihub', url: Astro.site.href, inLanguage: 'zh-CN' };
+
+const ld = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    site,
+    // 首页讲的是这个软件本身；内页再声明一遍 SoftwareApplication 属于重复，
+    // 内页用 WebPage 指向同一个站点。
+    isHome
+      ? {
+          '@type': 'SoftwareApplication',
+          name: 'Aihub',
+          applicationCategory: 'ProductivityApplication',
+          operatingSystem: 'Windows 10, Windows 11, macOS 14+ (Apple Silicon)',
+          softwareVersion: release.version,
+          downloadUrl: release.released,
+          license: `${repo}/blob/main/LICENSE`,
+          offers: { '@type': 'Offer', price: '0', priceCurrency: 'CNY' },
+          description,
+          featureList: [
+            '一个窗口内多标签打开各家 AI 网页端',
+            '分屏最多四格：两格左右并排、四格田字格',
+            'Windows 上每个站点独立数据目录，登录态互不干扰',
+            '标签闲置 30 分钟自动挂起，释放内存',
+            'Alt + Space（macOS 为 ⌥ + Space）全局快捷键唤出',
+          ],
+        }
+      : {
+          '@type': 'WebPage',
+          name: title,
+          description,
+          url: canonical,
+          inLanguage: 'zh-CN',
+          isPartOf: site,
+        },
+    {
+      '@type': 'Organization',
+      name: 'Aihub',
+      url: Astro.site.href,
+      sameAs: [repo],
+    },
+    ...(crumbs?.length
+      ? [
+          {
+            '@type': 'BreadcrumbList',
+            itemListElement: crumbs.map((c, i) => ({
+              '@type': 'ListItem',
+              position: i + 1,
+              name: c.name,
+              item: new URL(
+                c.path === '/' ? '/' : `${c.path.replace(/\/$/, '')}/`,
+                Astro.site,
+              ).href,
+            })),
+          },
+        ]
+      : []),
+  ],
+};
+---
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <script is:inline>document.documentElement.classList.add('js');</script>
+    <script is:inline>
+      // 在首次绘制前标出访问者的系统，供 CSS 挑选要展示的那一份文案。
+      // 必须同步、必须极短：它要是晚一步，页面会先画一遍 Windows 版再换掉。
+      // 判定失败时什么都不写，CSS 的默认分支就是 Windows——这是最常见的情况，
+      // 也是"脚本挂了也比乱猜好"的那一边。
+      (function () {
+        var u = navigator.userAgent;
+        var p = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+        var os = '';
+        // 移动端先拦掉：安卓的 UA 里也有 Linux，iPad 的 UA 里也有 Macintosh，
+        // 不先排除就会把手机用户当成桌面 Linux / macOS。
+        if (/Android|iPhone|iPad|iPod/i.test(u)) os = 'mobile';
+        else if (/CrOS/.test(u)) os = '';
+        else if (p === 'Windows' || /Windows NT/i.test(u)) os = 'win';
+        else if (p === 'macOS' || /Macintosh|Mac OS X/i.test(u)) os = 'mac';
+        else if (p === 'Linux' || /Linux|X11/i.test(u)) os = 'linux';
+        if (os) document.documentElement.setAttribute('data-os', os);
+      })();
+    </script>
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta name="theme-color" content="#0B110F" />
+    <link rel="icon" type="image/png" href="/assets/brand/logo-mark.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Aihub" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <!-- 宽高写出来，抓取方不用等图片下完就能先排版；alt 是图片加载失败时的替代文本 -->
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={ogAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={ogAlt} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(ld)} is:inline />
+  </head>
+  <body>
+    <slot />
+    <script>
+      import '../scripts/ui';
+    </script>
+  </body>
+</html>

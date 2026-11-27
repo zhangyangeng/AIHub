@@ -1,0 +1,20 @@
+---
+import { release } from '../data/release';
+
+// 「3.7 MB」里的 MB 单独用 <small> 排，字号和基线才能跟数字分开控制
+const mb = (s: string) => s.replace(/\s*MB$/, '');
+---
+
+<section class="stats">
+  <div class="wrap">
+    <div class="stats-in" data-rv>
+      <div class="stat">
+        <b>{mb(release.windows.size)}<small>MB</small></b>
+        <span>Windows 安装包</span>
+      </div>
+      <div class="stat"><b>52<small>MB</small></b><span>常驻内存</span></div>
+      <div class="stat"><b>4<small>格</small></b><span>最多同屏</span></div>
+      <div class="stat"><b>&lt;1<small>秒</small></b><span>冷启动</span></div>
+    </div>
+  </div>
+</section>

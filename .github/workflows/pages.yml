@@ -1,0 +1,76 @@
+name: Website
+
+# 三种触发：
+#   website/ 有改动 —— 正常重建；
+#   发了一个 Release —— 站点要跟着换版本号、体积和更新日志，否则会停在旧版本上；
+#   手动。
+# 桌面端的构建在 build-tauri.yml，两边互不触发。
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - '.github/workflows/pages.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Release 事件检出的是标签，标签上的站点可能比 main 旧。
+          # 重建网站要的是最新的 main。
+          ref: ${{ github.event_name == 'release' && 'main' || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          # Astro 7 要求 >= 22.23.4，与 website/.nvmrc 保持一致
+          node-version: 22.23.4
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      # 版本、体积、更新日志都从 GitHub Releases 拉。带上 token 走 5000 次/小时，
+      # 不带只有 60 次——同一个 runner IP 上被别的任务用掉就拉不到了。
+      - name: Build
+        run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    if: github.event_name == 'release' || (github.ref == 'refs/heads/main' && github.event_name != 'pull_request')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

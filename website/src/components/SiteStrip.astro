@@ -1,0 +1,15 @@
+---
+import { sites } from '../data/sites';
+---
+
+<section class="sites">
+  <div class="wrap sites-in" data-rv>
+    <span class="sites-lead">预置 {sites.length} 个站点，也可以填任意网址</span>
+    <div class="sites-row">
+      {sites.map((s) => (
+        <span class="site"><img src={s.icon} alt="" />{s.name}</span>
+      ))}
+      <span class="site site-add">+ 任意网址</span>
+    </div>
+  </div>
+</section>

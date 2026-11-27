@@ -1,0 +1,40 @@
+---
+import type { Release } from '../data/changelog';
+
+interface Props {
+  release: Release;
+}
+
+const { release } = Astro.props;
+---
+
+<article class="rel">
+  <div class="rel-id">
+    {/* 版本号本身就是入口：点它去 GitHub 看这一版。
+        底部原来那条「完整变更 · 在 GitHub 上看这一版」已经去掉，
+        省掉每一版结尾都重复一次的链接行。 */}
+    <a class="ver" href={release.url} target="_blank" rel="noopener">
+      {release.version}
+      <svg class="ext" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <path
+          d="M3.6 8.4 8.4 3.6M8.4 3.6H5M8.4 3.6v3.4"
+          stroke="currentColor"
+          stroke-width="1.4"
+          stroke-linecap="round"
+          stroke-linejoin="round"></path>
+      </svg>
+    </a>
+    <time datetime={release.date}>{release.date}</time>
+    {release.current && <span class="tag">当前版本</span>}
+  </div>
+  <div class="rel-body">
+    {release.groups.map((g) => (
+      <section class="grp">
+        <h2>{g.title}</h2>
+        <ul>
+          {g.items.map((item) => <li set:html={item} />)}
+        </ul>
+      </section>
+    ))}
+  </div>
+</article>

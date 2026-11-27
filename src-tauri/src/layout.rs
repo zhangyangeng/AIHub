@@ -1,6 +1,6 @@
 //! 分屏几何：把「窗口宽度 + 每栏占比」算成每个 webview 的像素矩形。
 //!
-//! 这是整个迁移里最容易出错的一块——Electron 版是 main.js 的 computeGeometry /
+//! 这是整个迁移里最容易出错的一块——迁移前的 Electron 实现是 computeGeometry /
 //! dragDivider / normalizeWeights，语义必须逐条对齐，包括 Math.round 的半数进位行为
 //! （JS 的 Math.round 和 Rust 的 f64::round 对正数都是「.5 向上」，可以直接对应）。
 //!

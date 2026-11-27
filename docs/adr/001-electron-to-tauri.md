@@ -65,13 +65,21 @@ Windows 上反而是收益：WebView2 的 UA 本来就是 Edge，Electron 版
 
 ### 5. 错误页 / 崩溃兜底缺失
 
-Electron 版靠 `did-fail-load` 事件在站点加载失败时弹自定义错误页、崩溃时重建视图。
+Electron 版靠 `did-fail-load` 事件在站点加载失败时把视图导航到 `error.html`、崩溃后重建视图。
 Tauri 2.11 的 `PageLoadEvent` 只有 `Started` / `Finished` 两个变体，没有 `Failed`，
 也就是 `did-fail-load` 的等价物不存在——站点加载失败 / 崩溃时应用侧根本收不到信号，
-无法弹错误页或做兜底重建。
+既弹不出错误页，也做不了兜底重建。
 
-这是「能兜住的只剩 HTTP 正常但内容是错误页」这类边界，判定既不可靠、价值又低，
-所以暂不实现。等上游补齐 `PageLoadEvent::Failed` 后再回来补，记在这里作为已知限制。
+前端框架化时 `error.html` 被原样拷进了 `src-ui/public/`（Vite 会原样复制进 `dist`），
+但这一版始终**没接线**：触发源本身在 Tauri 里就不存在，页面成了「有资源、没入口」的死文件。
+它既没被任何代码引用，也不可能在真机上验证，所以没有保留价值，随 Electron 代码一起删掉了。
+
+剩下能兜的只有「HTTP 正常但内容是错误页」这类边界，判定不可靠、价值低，不值得为它另起方案。
+等上游补齐 `PageLoadEvent::Failed` 再回来补时，页面素材可从移除前的最后一个版本取回：
+
+```bash
+git show v0.5.5:src-ui/public/error.html > src-ui/public/error.html
+```
 
 ## 收益
 
@@ -98,3 +106,13 @@ Tauri 2.11 的 `PageLoadEvent` 只有 `Started` / `Finished` 两个变体，没�
 2. `apply_layout` 拆成 `plan_layout`（持锁纯计算）+ `execute_plan`（放锁后碰窗口）
 
 新增任何会创建 / 移动 webview 的代码，都必须遵守这两条。
+
+## 后续：Electron 实现已移除
+
+迁移后 Electron 那套（`main.js` / `preload.js` / 根目录 `index.html` / `error.html` / 根目录 `icons/`）
+作为对照保留了一段时间，但两条线很快就不再同步——功能全在 Tauri 侧推进，
+它既没有维护价值，也让 `npm ci` 白白拉进一个用不到的 Chromium。
+
+已于 v0.5.5 之后整体删除，包括 `electron` / `electron-builder` 依赖、`electron-updater`、
+打包配置块和 `build.yml`（Electron 回退打包）。`%APPDATA%/Aihub/config.json` 的兼容逻辑保留，
+老用户升级上来照旧能继承服务列表与布局。

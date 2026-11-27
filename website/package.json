@@ -1,0 +1,27 @@
+{
+  "name": "aihub-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Aihub 官网（独立于桌面端构建）",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "og": "node tools/make-og.mjs",
+    "releases": "node scripts/fetch-releases.mjs",
+    "prebuild": "npm run releases"
+  },
+  "dependencies": {
+    "@astrojs/sitemap": "^3.7.6",
+    "astro": "^7.4.13"
+  },
+  "devDependencies": {
+    "sass": "^1.108.2",
+    "sharp": "^0.35.5"
+  }
+}

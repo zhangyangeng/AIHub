@@ -9,7 +9,7 @@
  *   Rust 加密 → Node 解密   就是这个脚本
  *
  * fixture 由 `cargo test emit_envelope_for_node -- --ignored --nocapture` 生成。
- * 这里用的是 Node 内置 crypto，和 Electron 版 main.js 的 decryptLogin 同一套调用，
+ * 这里用的是 Node 内置 crypto，和迁移前 Electron 实现的 decryptLogin 同一套调用，
  * 所以它解得开就等于「老应用也解得开」。
  */
 const crypto = require('crypto');

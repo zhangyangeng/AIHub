@@ -1,0 +1,19 @@
+---
+import type { Message } from '../data/sites';
+
+interface Props {
+  messages: Message[];
+}
+
+const { messages } = Astro.props;
+---
+
+{
+  messages.map((m) =>
+    m.role === 'tag' ? (
+      <p class="m-tag" set:html={m.html} />
+    ) : (
+      <p class={`m ${m.role === 'user' ? 'm-u' : 'm-a'}`} set:html={m.html} />
+    ),
+  )
+}

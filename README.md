@@ -197,8 +197,8 @@ npm run tauri:build    # 出安装包
 本地构建/验证请用上面的 `tauri:dev` / `tauri:build`，不要直接 `cargo build`——
 前端资源是编译期嵌进二进制的，裸 `cargo build` 产出的 exe 没有外壳界面。
 
-仓库里还保留着迁 Tauri 之前那套 Electron 实现（`main.js` / `preload.js` / 根目录 `index.html`），
-只做不破坏性的维护，方便对照。**改功能请改 `src-tauri/` + `src-ui/` 那一套**，两边功能不再同步。
+代码只有一套：Rust 在 `src-tauri/`，外壳界面在 `src-ui/`。迁 Tauri 之前的 Electron 实现已经移除，
+不再维护第二份。
 
 欢迎提 Issue / PR。想加站点：先在 `assets/logos/` 里补一张 logo、跑 `npm run icons`，
 再在 `src-tauri/src/services.rs` 的 `default_services()` 里加一条。

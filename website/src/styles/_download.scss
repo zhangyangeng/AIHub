@@ -1,0 +1,415 @@
+@use 'tokens' as *;
+
+.dl {
+  padding: 118px 0 0;
+
+  .cap {
+    margin-top: 22px;
+
+    a {
+      color: $brand;
+      text-decoration: underline;
+    }
+  }
+}
+
+.dlc-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.dlc {
+  background: $card;
+  border: 1px solid $line;
+  border-radius: $r;
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+
+  &--main {
+    border-color: #cfe1d6;
+    box-shadow: 0 28px 54px -44px rgba(20, 60, 42, 0.6);
+    position: relative;
+
+    &::after {
+      content: "推荐";
+      position: absolute;
+      top: 22px;
+      right: 22px;
+      font-size: 11px;
+      color: $brand;
+      background: #ebf4ee;
+      border: 1px solid #d8e9df;
+      border-radius: 5px;
+      padding: 2px 7px;
+    }
+
+    .btn-main {
+      box-shadow: none;
+
+      &:hover {
+        box-shadow: 0 14px 28px -16px rgba(56, 201, 140, 0.7);
+      }
+    }
+  }
+
+  h3 {
+    font-size: 19px;
+    letter-spacing: -0.02em;
+  }
+
+  .arch {
+    font-family: $mono;
+    font-size: 11.5px;
+    color: $muted-2;
+    margin-top: 7px;
+    letter-spacing: 0.02em;
+  }
+
+  p {
+    font-size: 13.5px;
+    color: $muted;
+    line-height: 1.75;
+    margin: 14px 0 26px;
+  }
+
+  .btn-main {
+    margin-top: auto;
+    justify-content: center;
+    height: 46px;
+    font-size: 14.5px;
+    box-shadow: none;
+
+    &:hover {
+      box-shadow: 0 14px 28px -16px rgba(56, 201, 140, 0.7);
+    }
+  }
+}
+
+// ---------- 按访问者系统标记 ----------
+// 三张卡的位置和大小都不动。Windows 占 1.5fr 是因为它是主力平台，
+// 这是信息而不是装饰；按访问者重排会让同一张截图在不同人屏幕上长得不一样，
+// 而且 macOS / Linux 卡的内容量撑不起 1.5fr 的宽度，换过去只会空。
+// 所以"优先"只做在视觉权重上：标出你的系统、把绿框移过去、主按钮降级。
+// 真正的转化路径是首屏那颗按钮，它已经跟着系统换了。
+.dlc-you {
+  display: none;
+  margin-left: 7px;
+  vertical-align: 2px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: $brand;
+  background: #ebf4ee;
+  border: 1px solid #d8e9df;
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+// macOS 那条限制跟着卡片走，不等人滚到最下面才看见。
+// 它只在"这张卡是你系统"的时候出现，其余时候不占位。
+.dlc p.dlc-warn {
+  display: none;
+  margin: 12px 0 20px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #8a5a1e;
+  background: #fdf6e9;
+  border-left: 2px solid #e8c48a;
+  border-radius: 0 6px 6px 0;
+}
+
+// 这个平台这一版没有包：给一块虚线灰框，既不让卡片塌下去，
+// 也不给一个点下去 404 的按钮。
+.dlc p.dlc-none {
+  margin: auto 0 0;
+  padding: 12px 14px;
+  border: 1px dashed #ddd8c9;
+  border-radius: 10px;
+  background: #faf9f4;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: $muted-2;
+  text-align: center;
+
+  a {
+    color: $brand;
+    text-decoration: underline;
+    white-space: nowrap;
+  }
+}
+
+@mixin dlc-active($os) {
+  html[data-os='#{$os}'] .dlc[data-os='#{$os}'] {
+    border-color: #cfe1d6;
+    box-shadow: 0 28px 54px -44px rgba(20, 60, 42, 0.6);
+
+    .dlc-you {
+      display: inline;
+    }
+
+    // 匹配的那张卡里，第一个文件升成按钮。否则它只有一行文字链接，
+    // 旁边 Windows 卡即使降级成描边也还是个整宽按钮，主次还是反的。
+    .dlls a:first-child {
+      height: 46px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 999px;
+      background: $jade;
+      color: #06130d;
+      font-size: 14.5px;
+      font-weight: 600;
+      transition: background 0.18s, box-shadow 0.18s;
+
+      span {
+        font-size: 12px;
+        color: rgba(6, 19, 13, 0.55);
+      }
+
+      &:hover {
+        background: #6eefb3;
+        color: #06130d;
+        box-shadow: 0 14px 28px -16px rgba(56, 201, 140, 0.7);
+      }
+    }
+  }
+}
+
+@include dlc-active('mac');
+@include dlc-active('linux');
+
+html[data-os='mac'] .dlc[data-os='mac'] p.dlc-warn {
+  display: block;
+}
+
+// 访问者不是 Windows 时，Windows 卡让出"推荐"的位置：
+// 撤掉绿框和角标，主按钮降级成描边——否则一个大绿按钮压在小卡旁边，
+// 反而把用户又推回 Windows。
+html[data-os='mac'] .dlc[data-os='win'],
+html[data-os='linux'] .dlc[data-os='win'] {
+  border-color: $line;
+  box-shadow: none;
+
+  &::after {
+    display: none;
+  }
+
+  .btn-main {
+    background: transparent;
+    color: $brand;
+    border: 1px solid $line;
+    box-shadow: none;
+    font-weight: 500;
+
+    &:hover {
+      background: #fbfaf5;
+      border-color: #cfd9d2;
+      transform: none;
+      box-shadow: none;
+    }
+  }
+}
+
+.dlls {
+  margin-top: auto;
+  padding-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+
+  a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13.5px;
+    color: $brand;
+    border-bottom: 1px solid $line-2;
+    padding-bottom: 9px;
+    transition: color 0.2s;
+
+    &:hover {
+      color: $jade-2;
+    }
+
+    span {
+      font-family: $mono;
+      font-size: 11px;
+      color: $muted-2;
+    }
+  }
+}
+
+// 文件列表：只有这一块用 <details> 折叠，
+// 折起来的是"其他格式与校验值"，绝大多数人不需要（DESIGN.md 5）
+.files {
+  margin-top: 34px;
+  background: $card;
+  border: 1px solid $line;
+  border-radius: $r;
+  overflow: hidden;
+
+  &-h {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 22px;
+    border-bottom: 1px solid $line-2;
+    font-size: 13px;
+    color: $muted;
+
+    b {
+      font-size: 13.5px;
+      color: $text;
+      font-weight: 600;
+    }
+  }
+}
+
+.frow {
+  display: grid;
+  grid-template-columns: 64px 252px minmax(0, 1fr) 70px;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 22px;
+  border-top: 1px solid $line-2;
+  font-size: 13.5px;
+  transition: background 0.18s;
+
+  &:first-of-type {
+    border-top: 0;
+  }
+
+  &:hover {
+    background: #fcfbf6;
+  }
+
+  .os {
+    font-family: $mono;
+    font-size: 10.5px;
+    color: $muted-2;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .fn {
+    font-family: $mono;
+    font-size: 12.5px;
+    color: #22302a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fd {
+    color: $muted;
+    font-size: 12.5px;
+  }
+
+  .fs {
+    font-family: $mono;
+    font-size: 11.5px;
+    color: $muted-2;
+    text-align: right;
+  }
+}
+
+details.files-more {
+  border-top: 1px solid $line-2;
+
+  summary {
+    list-style: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 22px;
+    font-size: 13.5px;
+    color: $brand;
+    transition: background 0.18s;
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &:hover {
+      background: #fcfbf6;
+    }
+
+    &::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-right: 1.6px solid currentColor;
+      border-bottom: 1.6px solid currentColor;
+      transform: rotate(-45deg);
+      transition: transform 0.2s;
+      margin-left: 2px;
+      flex: none;
+    }
+
+    .cnt {
+      margin-left: auto;
+      font-family: $mono;
+      font-size: 11px;
+      color: $muted-2;
+    }
+  }
+
+  &[open] summary::before {
+    transform: rotate(45deg);
+  }
+}
+
+// "装之前要知道的"：不折、不缩、不藏
+.caveats {
+  margin-top: 26px;
+  padding: 26px 28px;
+  border: 1px solid $line;
+  border-radius: $r;
+  background: #fbfaf5;
+
+  h3 {
+    font-size: 14px;
+    letter-spacing: -0.01em;
+    margin-bottom: 16px;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 11px;
+  }
+
+  li {
+    font-size: 13.5px;
+    color: $muted;
+    line-height: 1.75;
+    padding-left: 16px;
+    position: relative;
+
+    &::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0.72em;
+      width: 5px;
+      height: 1px;
+      background: #c6c1b2;
+    }
+  }
+
+  b {
+    color: #2a3832;
+    font-weight: 600;
+    margin-right: 6px;
+  }
+
+  code {
+    font-size: 11.5px;
+  }
+}
